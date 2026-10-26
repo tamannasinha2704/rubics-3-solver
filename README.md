@@ -190,7 +190,7 @@ on a production build served from a GitHub-Pages-style sub-path.
 
 ## License
 
-Copyright © 2026 Tamanna Sinha. Released under the [MIT License](LICENSE).
+Copyright © 2026 Tamanna Sinha. Released under the [MIT License](LICENSE). Third-party code is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### Third-party code
 

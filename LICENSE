@@ -19,13 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------------------------------------------------------
-
-Third-party code
-
-The files in src/solver/vendor/cubejs/ are from cubejs
-(https://github.com/ldez/cubejs), Copyright (c) 2013-2017 Petri Lehtinen and
-Copyright (c) 2018 Ludovic Fernandez, used under the MIT License; see
-src/solver/vendor/cubejs/LICENSE. The built site also bundles React and
-three.js, which are distributed under the MIT License by their authors.
