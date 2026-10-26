@@ -52,7 +52,7 @@ solution (about 20 moves) instead.
 - **Learning mode** (turn it off for a compact view) and a **Cube basics** guide cover how to hold
   the cube, notation, clockwise vs counterclockwise (including the tricky back/left/bottom faces),
   and a map of the beginner method. A practice cube lets you try every move.
-- A friendly cartoon look (chunky outlines, the Cubey mascot) that works on phones (with a docked
+- A friendly comic look (Comic Neue type, chunky outlines, the Cubey mascot) that works on phones (with a docked
   control bar) and in light and dark themes. The cube you entered is kept in local storage
   between visits.
 
@@ -199,7 +199,7 @@ Copyright © 2026 Tamanna Sinha. Released under the [MIT License](LICENSE). Thir
   MIT License (see `src/solver/vendor/cubejs/LICENSE`). Its copyright notice must stay with
   those files.
 - The site is built with [React](https://react.dev/) and [three.js](https://threejs.org/) (both MIT)
-  and uses the Fredoka and Nunito fonts (SIL Open Font License), bundled with the site.
+  and uses the Comic Neue font (SIL Open Font License), bundled with the site.
 - Every build publishes the license texts of all bundled packages as `licenses.txt`, linked
   from the site footer. The site loads nothing from third-party servers: no fonts, trackers
   or APIs.

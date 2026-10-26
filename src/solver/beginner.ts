@@ -42,7 +42,6 @@ export const STAGE_ORDER: StageId[] = [
 export interface StageInfo {
   id: StageId;
   title: string;
-  emoji: string;
   goal: string;
   think: string;
   /** Face to show in the "goal picture" for this stage. */
@@ -201,9 +200,9 @@ class PlanBuilder {
     return `${faces.map(this.color).join('–')} ${faces.length === 2 ? 'edge' : 'corner'}`;
   }
 
-  /** "top-front, white facing up" or "home ✓". */
+  /** "top-front, white facing up" or "in its home spot". */
   where(faces: Face[], key?: Face, s: FState = this.s): string {
-    if (isSolvedPiece(s, faces)) return 'in its home spot ✓';
+    if (isSolvedPiece(s, faces)) return 'in its home spot';
     const loc = locate(s, faces);
     let text = POSITION_NAME[loc.name];
     if (key) text += `, ${this.color(key)} facing ${DIRECTION[faceOf(stickerOf(s, faces, key))]}`;
@@ -288,7 +287,7 @@ function solveDaisy(b: PlanBuilder) {
       const next = applyMove(b.s, m);
       const moved = b.where(piece, 'D') !== b.where(piece, 'D', next);
       let why: string;
-      if (moved && isPetal(next, best.x)) why = `Swings the ${b.pieceName(piece)} up top with ${W} facing up — it's a petal now! 🌼`;
+      if (moved && isPetal(next, best.x)) why = `Swings the ${b.pieceName(piece)} up top with ${W} facing up — it's a petal now!`;
       else if (moved) why = `Moves the ${b.pieceName(piece)} one step closer to the top.`;
       else if (m.face === 'U') why = 'Turns the top to slide the petals out of the way, so the spot where our edge will arrive is free.';
       else why = 'Sets things up without moving our edge.';
@@ -325,7 +324,7 @@ function solveCross(b: PlanBuilder) {
     if (t) b.push(t, `Turn the top so the ${c} sticker of this petal lines up above the ${c} center.`, { faces: piece, key: 'D' });
     b.push(
       { face: x, turns: 2 },
-      `Turn the ${c} side twice — the petal flips down to the bottom, next to the ${W} center. ✓`,
+      `Turn the ${c} side twice — the petal flips down to the bottom, next to the ${W} center. Done!`,
       { faces: piece, key: 'D' },
     );
     if (!isSolvedPiece(b.s, piece)) throw new Error('Cross edge not solved');
@@ -390,7 +389,7 @@ function solveBottomCorners(b: PlanBuilder) {
     for (let round = 1; round <= 5 && !isSolvedPiece(b.s, piece); round++) {
       const whys = SEXY_WHY(r);
       whys[3] += isSolvedPiece(applyMoves(b.s, moves), piece)
-        ? ` The corner is home with ${W} facing down! ✓`
+        ? ` The corner is home with ${W} facing down!`
         : ' Not home yet (or twisted) — repeat the trick.';
       b.pushTrick(moves, whys, { faces: piece, key: 'D' }, round);
     }
@@ -411,7 +410,7 @@ function insertWhys(front: string, side: string): string[] {
     'Step 5: turn the top the other way: the pair travels together.',
     `Step 6: turn the ${front} face: the empty slot opens up toward the pair.`,
     'Step 7: turn the top back: the pair sits right over the open slot.',
-    `Step 8: turn the ${front} face back: the pair drops in — edge in the middle, corner back home. ✓`,
+    `Step 8: turn the ${front} face back: the pair drops in — edge in the middle, corner back home. Done!`,
   ];
 }
 
@@ -565,7 +564,7 @@ function solveYellowEdges(b: PlanBuilder) {
     if (m === 4) {
       if (pre) {
         b.begin('yellowEdges', 'Line up the top edges', 'All four edges already fit — just turn the top until each edge matches the center below it.');
-        b.push(pre, 'Turn the top: every top edge now matches its center. ✓');
+        b.push(pre, 'Turn the top: every top edge now matches its center. Done!');
       }
       return;
     }
@@ -684,7 +683,7 @@ function solveCornerTwist(b: PlanBuilder) {
           `Turn the ${R} side down.`,
           'Turn the bottom.',
           `Turn the ${R} side back up.`,
-          `Turn the bottom back.${done ? ` ${capital(Y)} faces up on this corner now! ✓` : ` Is ${Y} facing up yet? Not yet — repeat.`}`,
+          `Turn the bottom back.${done ? ` ${capital(Y)} faces up on this corner now!` : ` Is ${Y} facing up yet? Not yet — repeat.`}`,
         ],
         { faces: pieceFaces, key: 'U' },
         round,
@@ -695,7 +694,7 @@ function solveCornerTwist(b: PlanBuilder) {
   for (let k = 1; k < 4 && !isSolvedAll(b.s); k++) {
     if (isSolvedAll(applyMove(b.s, topMove(k)!))) {
       b.begin('cornerTwist', 'Line up the top layer', 'Every piece is right; the top layer just needs one last turn to line up with the rest.');
-      b.push(topMove(k)!, 'Turn the top to line it up. Solved! 🎉');
+      b.push(topMove(k)!, 'Turn the top to line it up. Solved!');
     }
   }
 }
@@ -707,7 +706,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'flip',
       title: 'Get a grip',
-      emoji: '🤲',
       goal: `Hold your cube with ${bottom} on the bottom and ${top} on top.`,
       think: `Beginners solve the cube one layer at a time, from the bottom up: first the ${bottom} layer, then the middle, then the ${top} top. Starting with ${bottom} on the bottom keeps your finished work out of the way.`,
       showFace: 'U',
@@ -715,7 +713,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'daisy',
       title: 'Make a daisy',
-      emoji: '🌼',
       goal: `Gather the four ${bottom} edge pieces around the ${top} center with ${bottom} facing up. It looks like a flower: a ${top} middle with four ${bottom} petals.`,
       think: `Edge pieces have two colors. Hunt for the ones with ${bottom} on them and bring each up so ${bottom} faces the ceiling. Turning the top never knocks petals off, so use it to make room.`,
       showFace: 'U',
@@ -723,7 +720,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'cross',
       title: `${capital(bottom)} cross`,
-      emoji: '➕',
       goal: `Move each petal down to the ${bottom} center to make a ${bottom} cross on the bottom whose edges match the side centers.`,
       think: `Read a petal's other color. Turn the top until that sticker sits above the center of the same color, then turn that side twice. Every petal works the same way.`,
       showFace: 'D',
@@ -731,7 +727,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'corners',
       title: `Finish the ${bottom} layer`,
-      emoji: '🧱',
       goal: `Fill in the four bottom corners so the whole bottom is ${bottom} and the bottom row of every side matches.`,
       think: `Find a ${bottom} corner on top, read its two other colors, and park it above the spot between those two centers. Then repeat the 4-move trick until it drops in.`,
       showFace: 'D',
@@ -739,7 +734,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'middle',
       title: 'Middle layer',
-      emoji: '🥪',
       goal: `Slide the four edges that have no ${top} on them into the middle layer, between their matching centers.`,
       think: `Find a top edge with no ${top}. Line its side color up with its center (an upside-down T), then check where its top color's center is: right or left? Use the matching insert trick.`,
       showFace: 'F',
@@ -747,7 +741,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'yellowCross',
       title: `${capital(top)} cross`,
-      emoji: '✚',
       goal: `Make a ${top} plus sign on top. Ignore the sides for now.`,
       think: `Look only at the top edges. You will see a dot, an L, a line or a cross. The cross maker moves you along: dot → L → line → cross.`,
       showFace: 'U',
@@ -755,7 +748,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'yellowEdges',
       title: 'Match the top edges',
-      emoji: '🔁',
       goal: 'Turn and swap the top edges so each one matches the center below it.',
       think: 'Turn the top until at least two edges match. Neighbors? One swap trick finishes it. Opposite? Do it once to make neighbors, then again.',
       showFace: 'F',
@@ -763,7 +755,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'cornerSpots',
       title: 'Corners to their spots',
-      emoji: '📍',
       goal: 'Move each top corner to its own spot, even if it is twisted.',
       think: 'A corner fits when its three colors match the three centers around it. Keep a fitting corner still and cycle the other three around it.',
       showFace: 'U',
@@ -771,7 +762,6 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
     {
       id: 'cornerTwist',
       title: 'Twist & finish',
-      emoji: '🏁',
       goal: `Twist each top corner until ${top} faces up — then the cube is solved!`,
       think: `Twisted corner to the front-right, repeat R' D' R D until ${top} is up, turn only the top to the next one. Trust it: the messy bottom fixes itself.`,
       showFace: 'U',

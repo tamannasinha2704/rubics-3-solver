@@ -24,8 +24,8 @@
   --shadow-sm: 2px 2px 0 var(--ink);
   --line: 2.5px solid var(--ink);
   --radius: 20px;
-  --font-fun: 'Fredoka', 'Baloo 2', ui-rounded, 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Nunito', ui-rounded, 'Segoe UI', system-ui, sans-serif;
+  --font-fun: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  --font-body: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
   color-scheme: light;
 }
 
@@ -53,7 +53,9 @@
   }
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -65,7 +67,7 @@ body {
   background-size: 22px 22px;
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.55;
   -webkit-text-size-adjust: 100%;
 }
@@ -87,7 +89,8 @@ h3 {
   font-family: var(--font-fun);
   line-height: 1.2;
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 :focus-visible {
@@ -165,11 +168,11 @@ h3 {
   height: 1px;
 }
 .switch-track {
-  width: 46px;
+  width: 48px;
   height: 28px;
   border-radius: 14px;
   background: var(--surface-2);
-  border: var(--line);
+  border: 2px solid var(--ink);
   position: relative;
   transition: background 0.15s;
   flex: none;
@@ -177,20 +180,22 @@ h3 {
 .switch-track::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 19px;
-  height: 19px;
+  top: 50%;
+  left: 3px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid var(--ink);
+  transform: translateY(-50%);
   transition: transform 0.15s;
 }
 .switch input:checked + .switch-track {
   background: var(--success);
 }
 .switch input:checked + .switch-track::after {
-  transform: translateX(18px);
+  /* 48 track - 2*2 border - 18 knob - 2*3 inset = 20 */
+  transform: translate(20px, -50%);
 }
 .switch input:focus-visible + .switch-track {
   outline: 3px solid var(--primary);
@@ -642,7 +647,7 @@ h3 {
 
 .face-editor {
   display: grid;
-  grid-template-columns: 30px minmax(0, 300px) 30px;
+  grid-template-columns: 28px minmax(0, 230px) 28px;
   grid-template-rows: 26px auto 26px;
   grid-template-areas:
     '. top .'
@@ -744,35 +749,54 @@ h3 {
   }
 }
 
+.net-card {
+  background: var(--surface);
+  border: var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px 18px;
+  box-shadow: var(--shadow);
+}
 .net {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 72px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-areas:
     '. u . .'
     'l f r b'
     '. d . .';
-  gap: 5px;
-  justify-content: center;
-  background: var(--surface);
-  border: var(--line);
-  border-radius: var(--radius);
-  padding: 16px 12px 12px;
-  box-shadow: var(--shadow);
+  gap: 8px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.net-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.net-label {
+  font-family: var(--font-fun);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 .net-face {
-  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  padding: 3px;
-  border-radius: 8px;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 10px;
   background: #1b1d22;
+  border: 2px solid var(--ink);
   aspect-ratio: 1;
   outline: 3px solid transparent;
 }
 .net-face.is-active {
   outline-color: var(--primary);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 .net-U {
   grid-area: u;
@@ -792,18 +816,9 @@ h3 {
 .net-D {
   grid-area: d;
 }
-.net-label {
-  position: absolute;
-  left: -2px;
-  top: -16px;
-  font-family: var(--font-fun);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--muted);
-}
 .net-sticker {
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 0;
   cursor: pointer;
   min-width: 0;
@@ -922,7 +937,7 @@ h3 {
 .method {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-areas: 'emoji name' 'desc desc';
+  grid-template-areas: 'icon name' 'desc desc';
   gap: 2px 8px;
   align-items: center;
   text-align: left;
@@ -939,9 +954,11 @@ h3 {
   transform: translateY(3px);
   box-shadow: 0 1px 0 var(--ink), 0 0 0 3px var(--primary);
 }
-.method-emoji {
-  grid-area: emoji;
-  font-size: 1.6rem;
+.method-icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
 }
 .method-name {
   grid-area: name;
@@ -1004,13 +1021,16 @@ h3 {
   align-items: center;
   gap: 12px;
 }
-.stage-emoji {
-  font-size: 2.2rem;
-  width: 58px;
-  height: 58px;
+.stage-badge {
+  font-family: var(--font-fun);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
-  background: var(--surface);
+  background: var(--sun);
   border: var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow-sm);
@@ -1365,7 +1385,7 @@ h3 {
 .stage-pill button:disabled {
   cursor: default;
 }
-.pill-emoji {
+.pill-badge {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -1374,7 +1394,8 @@ h3 {
   background: var(--surface-2);
   border: 2px solid var(--ink);
   flex: none;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 .pill-text {
   min-width: 0;
@@ -1384,8 +1405,8 @@ h3 {
   background: var(--success-soft);
   color: var(--muted);
 }
-.pill-done .pill-emoji,
-.pill-skipped .pill-emoji {
+.pill-done .pill-badge,
+.pill-skipped .pill-badge {
   background: var(--success);
   color: #fff;
   font-weight: 800;
@@ -1665,13 +1686,34 @@ h3 {
   padding: 8px 12px;
   background: var(--surface-2);
 }
-.stage-list .stage-emoji {
+.stage-list .stage-badge {
   width: 40px;
   height: 40px;
   font-size: 1.3rem;
 }
 
 /* ------------------------------------------------------------------ responsive */
+
+.icon {
+  flex: none;
+  vertical-align: -0.18em;
+}
+.inline-icon {
+  color: var(--primary);
+  margin-right: 2px;
+}
+.stage-think .inline-icon {
+  color: #e0a800;
+}
+.piece-track .inline-icon {
+  color: var(--move);
+}
+
+/* The 3D view and the six-face net are the same size on the input screen. */
+.input-cube .cube-view {
+  height: 465px;
+  min-height: 0;
+}
 
 @media (max-width: 960px) {
   .layout {
@@ -1740,8 +1782,13 @@ h3 {
     grid-template-columns: 26px minmax(0, 1fr) 26px;
   }
   .net {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    padding: 18px 8px 8px;
+    gap: 5px;
+  }
+  .net-label {
+    font-size: 0.66rem;
+  }
+  .input-cube .cube-view {
+    height: 340px;
   }
   .hold-card {
     align-items: flex-start;
@@ -1781,10 +1828,10 @@ h3 {
   .stage-title {
     font-size: 1.2rem;
   }
-  .stage-emoji {
-    width: 48px;
-    height: 48px;
-    font-size: 1.7rem;
+  .stage-badge {
+    width: 46px;
+    height: 46px;
+    font-size: 1.5rem;
   }
   .goal-pic .mini-face {
     width: 48px;

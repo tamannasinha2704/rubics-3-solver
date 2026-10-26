@@ -23,6 +23,7 @@ import {
 import type { SolveMethod, SolverStatus } from '../solver/solverClient';
 import { CubeView } from './CubeView';
 import { IsoCube } from './Diagrams';
+import { Icon } from './Icons';
 
 /** Order in which the editor walks through the faces. */
 const FACE_ORDER: Face[] = ['F', 'R', 'B', 'L', 'U', 'D'];
@@ -166,7 +167,7 @@ export function InputScreen(props: Props) {
 
   return (
     <div className="layout">
-      <section className="viewer-col" aria-label="3D cube">
+      <section className="viewer-col input-cube" aria-label="3D cube">
         <CubeView colors={stickers} highlights={highlights} onPick={pickFrom3D} label="3D view of the cube you are entering">
           <OrientationBadge scheme={scheme} />
         </CubeView>
@@ -247,7 +248,7 @@ export function InputScreen(props: Props) {
                 <span className="face-tab-name">
                   {FACE_NAMES[f]} <span className="muted">({f})</span>
                 </span>
-                <span className="face-tab-count">{faceFilled(f) === 9 ? '✓' : `${faceFilled(f)}/9`}</span>
+                <span className="face-tab-count">{faceFilled(f) === 9 ? <Icon name="check" size={16} /> : `${faceFilled(f)}/9`}</span>
               </button>
             ))}
           </div>
@@ -279,10 +280,10 @@ export function InputScreen(props: Props) {
         <div className="card">
           <div className="toolbar">
             <button type="button" className="btn" onClick={props.onUndo} disabled={!props.canUndo} title="Undo (Ctrl+Z)">
-              ↶ Undo
+              <Icon name="undo" /> Undo
             </button>
             <button type="button" className="btn" onClick={props.onRedo} disabled={!props.canRedo} title="Redo (Ctrl+Y)">
-              ↷ Redo
+              <Icon name="redo" /> Redo
             </button>
             <button
               type="button"
@@ -323,7 +324,7 @@ export function InputScreen(props: Props) {
               className={`method ${props.method === 'learn' ? 'is-selected' : ''}`}
               onClick={() => props.onMethodChange('learn')}
             >
-              <span className="method-emoji" aria-hidden="true">🧠</span>
+              <span className="method-icon"><Icon name="learn" size={26} /></span>
               <span className="method-name">Learn to solve</span>
               <span className="method-desc">Solve along with the beginner method. About 150 moves, in small missions, each explained.</span>
             </button>
@@ -334,7 +335,7 @@ export function InputScreen(props: Props) {
               className={`method ${props.method === 'quick' ? 'is-selected' : ''}`}
               onClick={() => props.onMethodChange('quick')}
             >
-              <span className="method-emoji" aria-hidden="true">⚡</span>
+              <span className="method-icon"><Icon name="bolt" size={26} /></span>
               <span className="method-name">Quick solve</span>
               <span className="method-desc">The computer's shortest path: about 20 moves, but hard to learn from.</span>
             </button>
@@ -350,7 +351,6 @@ export function InputScreen(props: Props) {
           </button>
           <p className="muted small">
             {props.method === 'quick' && props.solverStatus === 'loading' && 'The quick solver is loading in the background (a few seconds, once).'}
-            {(props.method === 'learn' || props.solverStatus === 'ready') && 'Everything runs in your browser.'}
             {props.method === 'quick' && props.solverStatus === 'error' && 'The quick solver failed to load. Try reloading the page.'}
           </p>
           {props.solveError && (
@@ -469,31 +469,38 @@ interface NetProps {
 /** Unfolded cube: every face at once. Clicking a face selects it; clicking a square paints it. */
 function CubeNet({ stickers, activeFace, highlights, onSelectFace, onPaint }: NetProps) {
   return (
-    <div className="net" aria-label="Unfolded view of all six faces">
-      {FACES.map((f) => (
-        <div key={f} className={`net-face net-${f} ${activeFace === f ? 'is-active' : ''}`}>
-          <span className="net-label">{f}</span>
-          {Array.from({ length: 9 }, (_, k) => {
-            const index = faceIndex(f) * 9 + k;
-            const s = stickers[index];
-            return (
-              <button
-                key={k}
-                type="button"
-                tabIndex={-1}
-                className={`net-sticker ${highlights.has(index) ? 'is-error' : ''}`}
-                style={{ background: s ? COLOR_HEX[s] : EMPTY_HEX }}
-                onClick={() => {
-                  onSelectFace(f);
-                  onPaint(index);
-                }}
-                aria-label={`${FACE_NAMES[f]} square ${k + 1}`}
-              />
-            );
-          })}
-        </div>
-      ))}
-    </div>
+    <section className="net-card" aria-label="Unfolded view of all six faces">
+      <h2 className="card-title">All six faces</h2>
+      <div className="net">
+        {FACES.map((f) => (
+          <div key={f} className={`net-cell net-${f}`}>
+            <span className="net-label">
+              {FACE_NAMES[f]} ({f})
+            </span>
+            <div className={`net-face ${activeFace === f ? 'is-active' : ''}`}>
+              {Array.from({ length: 9 }, (_, k) => {
+                const index = faceIndex(f) * 9 + k;
+                const s = stickers[index];
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    tabIndex={-1}
+                    className={`net-sticker ${highlights.has(index) ? 'is-error' : ''}`}
+                    style={{ background: s ? COLOR_HEX[s] : EMPTY_HEX }}
+                    onClick={() => {
+                      onSelectFace(f);
+                      onPaint(index);
+                    }}
+                    aria-label={`${FACE_NAMES[f]} square ${k + 1}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

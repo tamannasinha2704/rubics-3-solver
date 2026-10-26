@@ -6,6 +6,7 @@ import { PHYSICAL } from '../solver/explain';
 import { CubeView, type CubeViewHandle } from './CubeView';
 import { stageInfos } from '../solver/beginner';
 import { IsoCube, Mascot, TurnIllustration } from './Diagrams';
+import { Icon } from './Icons';
 
 const SECTIONS = ['Hold', 'Notation', 'Clockwise', 'Practice', 'Why', 'Tips'] as const;
 type Section = (typeof SECTIONS)[number];
@@ -41,7 +42,7 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
           <Mascot size={40} /> Cube basics
         </h2>
         <button type="button" className="btn btn-small" onClick={onClose} aria-label="Close guide">
-          ✕ Close
+          <Icon name="close" /> Close
         </button>
       </div>
       <nav className="guide-tabs" aria-label="Guide sections">
@@ -161,9 +162,9 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
               know by heart:
             </p>
             <ol className="stage-list">
-              {stageInfos(lc(scheme.U), lc(scheme.D)).map((st) => (
+              {stageInfos(lc(scheme.U), lc(scheme.D)).map((st, i) => (
                 <li key={st.id}>
-                  <span className="stage-emoji" aria-hidden="true">{st.emoji}</span>
+                  <span className="stage-badge" aria-hidden="true">{i + 1}</span>
                   <span>
                     <strong>{st.title}.</strong> {st.goal}
                   </span>

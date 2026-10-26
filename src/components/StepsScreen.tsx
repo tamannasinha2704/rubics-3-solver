@@ -7,6 +7,7 @@ import { analyzeSolution, describeMove, stageText } from '../solver/explain';
 import type { Solution } from '../solver/solverClient';
 import { CubeView, type CubeViewHandle } from './CubeView';
 import { FlipIllustration, Mascot, MiniFace, TurnIllustration } from './Diagrams';
+import { Icon } from './Icons';
 
 /** Animation length for each speed setting, slowest first. */
 const SPEEDS = [
@@ -248,13 +249,13 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
           <div className="card controls-card">
             <div className="controls">
               <button type="button" className="btn ctrl" onClick={restart} disabled={index === 0 && !anim} title="Restart (Home)">
-                ⏮ <span>Restart</span>
+                <Icon name="restart" /> <span>Restart</span>
               </button>
               <button type="button" className="btn ctrl" onClick={prev} disabled={index === 0} title="Previous move (←)">
-                ◀ <span>Back</span>
+                <Icon name="back" /> <span>Back</span>
               </button>
               <button type="button" className="btn ctrl" onClick={togglePlay} title="Play / pause (Space)" aria-pressed={playing}>
-                {playing ? '⏸' : '▶'} <span>{playing ? 'Pause' : learn ? 'Play mission' : 'Play'}</span>
+                <Icon name={playing ? 'pause' : 'play'} /> <span>{playing ? 'Pause' : learn ? 'Play mission' : 'Play'}</span>
               </button>
               <button
                 type="button"
@@ -266,12 +267,12 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
                 disabled={index >= n}
                 title="Next move (→)"
               >
-                ⏭ <span>Next</span>
+                <Icon name="next" /> <span>Next</span>
               </button>
             </div>
             <div className="row row-between controls-sub">
               <button type="button" className="link-btn" onClick={replay} disabled={index === 0}>
-                ↻ Replay last move
+                <Icon name="replay" /> Replay last move
               </button>
               <label className="speed">
                 <span>Speed: {SPEEDS[speed]?.label}</span>
@@ -340,7 +341,7 @@ function LearnCards({ plan, step, states, learning }: { plan: LearnPlan; step: n
     <>
       <div className={`card stage-card ${newStage ? 'is-new' : ''}`}>
         <div className="stage-head">
-          <span className="stage-emoji" aria-hidden="true">{stage.emoji}</span>
+          <span className="stage-badge" aria-hidden="true">{stageNumber}</span>
           <div>
             <div className="stage-kicker">
               Stage {stageNumber} of {STAGE_ORDER.length}
@@ -358,7 +359,9 @@ function LearnCards({ plan, step, states, learning }: { plan: LearnPlan; step: n
         <p className="stage-goal">
           <strong>Goal:</strong> {stage.goal}
         </p>
-        {learning && newStage && <p className="stage-think">💡 {stage.think}</p>}
+        {learning && newStage && <p className="stage-think">
+            <Icon name="bulb" className="inline-icon" /> {stage.think}
+          </p>}
       </div>
 
       <div className="card mission-card">
@@ -392,7 +395,9 @@ function TrickTracker({ plan, step }: { plan: LearnPlan; step: number }) {
   return (
     <div className="trick">
       <div className="trick-head">
-        <span className="trick-name">🪄 {trick.name}</span>
+        <span className="trick-name">
+          <Icon name="wand" className="inline-icon" /> {trick.name}
+        </span>
         {note.round !== undefined && rounds > 1 && (
           <span className="trick-round">
             round {note.round} of {rounds}
@@ -426,7 +431,7 @@ function MoveWhy({ plan, step }: { plan: LearnPlan; step: number }) {
       </p>
       {note.piece && (
         <p className="piece-track">
-          <span aria-hidden="true">📍</span> Our piece
+          <Icon name="pin" className="inline-icon" /> Our piece
           {before === note.piece ? ' stays at' : before ? <> goes from <em>{before}</em> to</> : ' ends up at'} <strong>{note.piece}</strong>
         </p>
       )}
@@ -497,9 +502,9 @@ function StageMap({ plan, index, cardStep, onJump }: { plan: LearnPlan; index: n
           return (
             <li key={st.id} className={`stage-pill pill-${status}`}>
               <button type="button" disabled={!segs.length} onClick={() => start !== undefined && onJump(start)} title={st.goal}>
-                <span className="pill-emoji" aria-hidden="true">{status === 'done' || status === 'skipped' ? '✓' : st.emoji}</span>
+                <span className="pill-badge" aria-hidden="true">{status === 'done' || status === 'skipped' ? <Icon name="check" size={15} /> : i + 1}</span>
                 <span className="pill-text">
-                  {i + 1}. {st.title}
+                  {st.title}
                   {status === 'skipped' && <em> — already done</em>}
                 </span>
               </button>
@@ -545,7 +550,7 @@ function MoveList({ moves, learn, index, cardStep, done, onJump }: MoveListProps
           if (!segs.length) return null;
           const from = segs[0].firstMove;
           const to = segs[segs.length - 1].firstMove + segs[segs.length - 1].moveCount;
-          return { title: `${st.emoji} ${st.title}`, from, to };
+          return { title: `Stage ${STAGE_ORDER.indexOf(st.id) + 1}: ${st.title}`, from, to };
         })
         .filter((g): g is { title: string; from: number; to: number } => g !== null)
     : [{ title: '', from: 0, to: moves.length }];

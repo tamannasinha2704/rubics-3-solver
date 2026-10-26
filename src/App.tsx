@@ -138,7 +138,7 @@ export default function App() {
 
       {learning && phase === 'input' && (
         <p className="intro">
-          👋 Hi, I'm Cubey! First copy the colors of your scrambled cube into the faces below. Then we'll solve it together, one small
+          Hi, I'm Cubey! First copy the colors of your scrambled cube into the faces below. Then we'll solve it together, one small
           mission at a time. New to cubes? Peek at <button type="button" className="link-btn" onClick={() => setGuideOpen(true)}>Cube basics</button> first.
         </p>
       )}
@@ -186,7 +186,7 @@ export default function App() {
         <p>
           Quick solve uses Kociemba's two-phase algorithm via the open-source{' '}
           <a href="https://github.com/ldez/cubejs">cubejs</a> library (MIT). Every solution is verified against your cube before it
-          is shown, and everything runs in your browser.
+          is shown.
         </p>
       </footer>
 
