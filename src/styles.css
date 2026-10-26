@@ -1469,6 +1469,14 @@ h3 {
   background: var(--surface);
 }
 
+.app-footer p {
+  margin: 4px 0;
+}
+.footer-owner {
+  font-family: var(--font-fun);
+  font-size: 0.95rem;
+  color: var(--text);
+}
 .app-footer {
   margin-top: 30px;
   text-align: center;

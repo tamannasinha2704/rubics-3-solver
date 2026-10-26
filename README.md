@@ -1,5 +1,9 @@
 # Cube Coach
 
+**Live site:** https://tamannasinha2704.github.io/rubics-3-solver/
+
+Created by **Tamanna Sinha**.
+
 A solve-along website that teaches you to solve a Rubik's Cube. Enter the colors of your
 scrambled cube; the site checks that it is a real cube, then coaches you through solving it
 with the **beginner layer-by-layer method**. Every move comes with the stage you're in, the
@@ -184,7 +188,15 @@ on a production build served from a GitHub-Pages-style sub-path.
 - **Centers locked by default.** This prevents the most common beginner error. Cubes with
   non-standard color schemes are supported through the "My cube's centers differ" option.
 
-## Credits
+## License
 
-The solver is based on cubejs by Petri Lehtinen and Ludovic Fernandez (MIT License; see
-`src/solver/vendor/cubejs/LICENSE`). 3D rendering uses [three.js](https://threejs.org/).
+Copyright © 2026 Tamanna Sinha. Released under the [MIT License](LICENSE).
+
+### Third-party code
+
+- `src/solver/vendor/cubejs/`: the Quick-solve algorithm comes from
+  [cubejs](https://github.com/ldez/cubejs) by Petri Lehtinen and Ludovic Fernandez, used under the
+  MIT License (see `src/solver/vendor/cubejs/LICENSE`). Its copyright notice must stay with
+  those files.
+- The site is built with [React](https://react.dev/) and [three.js](https://threejs.org/), both
+  under the MIT License.

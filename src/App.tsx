@@ -179,8 +179,15 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        Solutions use Kociemba's two-phase algorithm (via the open-source <a href="https://github.com/ldez/cubejs">cubejs</a>{' '}
-        library) and are verified against your cube before they are shown. Runs entirely in your browser.
+        <p className="footer-owner">
+          © {new Date().getFullYear()} Tamanna Sinha · Cube Coach · <a href="https://github.com/tamannasinha2704/rubics-3-solver">Source on GitHub</a>{' '}
+          (MIT License)
+        </p>
+        <p>
+          Quick solve uses Kociemba's two-phase algorithm via the open-source{' '}
+          <a href="https://github.com/ldez/cubejs">cubejs</a> library (MIT). Every solution is verified against your cube before it
+          is shown, and everything runs in your browser.
+        </p>
       </footer>
 
       <Guide open={guideOpen} onClose={() => setGuideOpen(false)} scheme={scheme} />

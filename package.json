@@ -1,7 +1,15 @@
 {
-  "name": "rubiks-cube-solver",
+  "name": "cube-coach",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "description": "Cube Coach: a solve-along website that teaches you to solve a Rubik's Cube.",
+  "author": "Tamanna Sinha",
+  "license": "MIT",
+  "homepage": "https://tamannasinha2704.github.io/rubics-3-solver/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamannasinha2704/rubics-3-solver.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
