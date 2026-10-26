@@ -8,7 +8,7 @@ Cube Coach is copyright (c) 2026 Tamanna Sinha and released under the MIT Licens
 | [cubejs](https://github.com/ldez/cubejs) 1.3.2, Copyright (c) 2013-2017 Petri Lehtinen, Copyright (c) 2018 Ludovic Fernandez | `src/solver/vendor/cubejs/` (copied into this repository) | MIT, see `src/solver/vendor/cubejs/LICENSE` |
 | [React](https://react.dev/) and React DOM | bundled into the site | MIT |
 | [three.js](https://threejs.org/) | bundled into the site | MIT |
-| [Lilita One](https://fonts.google.com/specimen/Lilita+One) font by Juan Montoreano, via Fontsource | bundled into the site | SIL Open Font License 1.1 |
+| [Fredoka](https://github.com/hafontia/Fredoka-One) and [Nunito](https://github.com/googlefonts/nunito) fonts, via Fontsource | bundled into the site | SIL Open Font License 1.1 |
 
 Every build publishes the full license text of each bundled package as `licenses.txt`
 next to the site. It is linked from the site footer ("Open-source licenses"), and

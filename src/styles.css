@@ -24,8 +24,8 @@
   --shadow-sm: 2px 2px 0 var(--ink);
   --line: 2.5px solid var(--ink);
   --radius: 20px;
-  --font-fun: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
-  --font-body: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-fun: 'Fredoka', 'Baloo 2', ui-rounded, 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Nunito', ui-rounded, 'Segoe UI', system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -69,9 +69,6 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.55;
-  letter-spacing: 0.015em;
-  /* Lilita One has a single (bold) weight: never fake a heavier or lighter one. */
-  font-synthesis: none;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -92,8 +89,7 @@ h3 {
   font-family: var(--font-fun);
   line-height: 1.2;
   margin: 0;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 600;
 }
 
 :focus-visible {
@@ -541,8 +537,8 @@ h3 {
 
 .palette {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
 }
 .swatch {
   position: relative;
@@ -555,7 +551,7 @@ h3 {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 3px;
+  padding: 3px 2px;
   box-shadow: 0 4px 0 var(--ink);
   transition: transform 0.08s, box-shadow 0.08s;
 }
@@ -567,7 +563,11 @@ h3 {
   box-shadow: 0 1px 0 var(--ink), 0 0 0 4px var(--primary);
 }
 .swatch-label {
-  font-size: 0.7rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.64rem;
   font-weight: 800;
   background: rgba(255, 255, 255, 0.9);
   color: #1e1b3a;
@@ -1772,7 +1772,7 @@ h3 {
     white-space: normal;
   }
   .palette {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .swatch {
     aspect-ratio: auto;
