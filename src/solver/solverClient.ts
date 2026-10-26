@@ -6,15 +6,21 @@ import { isSolved } from '../cube/cubeState';
 import { applyMoves, parseAlgorithm, type Move } from '../cube/moves';
 import { validateCube } from '../cube/validation';
 import type { Color } from '../cube/types';
+import { solveBeginner, type LearnPlan } from './beginner';
 import type { SolverRequest, SolverResponse } from './solver.worker';
 
 export type SolverStatus = 'loading' | 'ready' | 'error';
+
+/** 'learn' = explained beginner method, 'quick' = shortest computer solution. */
+export type SolveMethod = 'learn' | 'quick';
 
 export interface Solution {
   moves: Move[];
   /** Sticker state after 0, 1, ... n moves. states[0] is the input, states[n] is solved. */
   states: Color[][];
   ms: number;
+  /** Explanations for every move (beginner method only). */
+  learn?: LearnPlan;
 }
 
 let worker: Worker | null = null;
@@ -74,19 +80,24 @@ function requestSolution(facelets: string): Promise<string> {
 }
 
 /** Build the intermediate states for a move list and confirm it ends solved. */
-export function buildVerifiedSolution(state: Color[], moves: Move[], ms = 0): Solution {
+export function buildVerifiedSolution(state: Color[], moves: Move[], ms = 0, learn?: LearnPlan): Solution {
   const states: Color[][] = [state.slice()];
   for (const m of moves) states.push(applyMoves(states[states.length - 1], [m]));
   if (!isSolved(states[states.length - 1])) {
     throw new Error('The solver returned a sequence that does not solve this cube, so it was rejected.');
   }
-  return { moves, states, ms };
+  return { moves, states, ms, learn };
 }
 
-export async function solveCube(state: Color[]): Promise<Solution> {
+export async function solveCube(state: Color[], method: SolveMethod = 'quick'): Promise<Solution> {
   const result = validateCube(state);
   if (!result.valid || !result.facelets) throw new Error('This cube is not valid, so it cannot be solved.');
   if (result.solved) return buildVerifiedSolution(state, []);
+  if (method === 'learn') {
+    const start = performance.now();
+    const plan = solveBeginner(state);
+    return buildVerifiedSolution(state, plan.moves, performance.now() - start, plan);
+  }
   const text = await requestSolution(result.facelets);
   return buildVerifiedSolution(state, parseAlgorithm(text), lastMs);
 }

@@ -2,16 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { blankState, encodeState, schemeOf } from './cube/cubeState';
 import { validateCube } from './cube/validation';
 import { COLORS, DEFAULT_SCHEME, FACES, centerIndex, type CenterScheme, type Color, type StickerState } from './cube/types';
+import { Mascot } from './components/Diagrams';
 import { Guide } from './components/Guide';
 import { InputScreen } from './components/InputScreen';
 import { Stepper, type StepStatus } from './components/Stepper';
 import { StepsScreen } from './components/StepsScreen';
 import { isBoolean, useStoredState } from './hooks/useStoredState';
-import { onSolverStatus, solveCube, warmUpSolver, type Solution, type SolverStatus } from './solver/solverClient';
+import { onSolverStatus, solveCube, warmUpSolver, type Solution, type SolveMethod, type SolverStatus } from './solver/solverClient';
 
 const isStickerState = (v: unknown): v is StickerState =>
   Array.isArray(v) && v.length === 54 && v.every((s) => s === null || (COLORS as readonly unknown[]).includes(s));
 const isSpeed = (v: unknown): v is number => typeof v === 'number' && v >= 0 && v <= 4;
+const isMethod = (v: unknown): v is SolveMethod => v === 'learn' || v === 'quick';
 
 const HISTORY_LIMIT = 200;
 
@@ -19,7 +21,8 @@ export default function App() {
   const [stickers, setStickers] = useStoredState<StickerState>('cube.stickers', blankState(), isStickerState);
   const [customCenters, setCustomCenters] = useStoredState('cube.customCenters', false, isBoolean);
   const [learning, setLearning] = useStoredState('cube.learning', true, isBoolean);
-  const [speed, setSpeed] = useStoredState('cube.speed', 2, isSpeed);
+  const [speed, setSpeed] = useStoredState('cube.speed', 1, isSpeed);
+  const [method, setMethod] = useStoredState<SolveMethod>('cube.method', 'learn', isMethod);
   const [past, setPast] = useState<StickerState[]>([]);
   const [future, setFuture] = useState<StickerState[]>([]);
   const [checked, setChecked] = useState(false);
@@ -82,8 +85,8 @@ export default function App() {
     if (result.solved) return; // the validation panel already says so
     setSolving(true);
     try {
-      const value = await solveCube(stickers as Color[]);
-      setSolution({ key: encodeState(stickers), value });
+      const value = await solveCube(stickers as Color[], method);
+      setSolution({ key: `${method}:${encodeState(stickers)}`, value });
       setPhase('steps');
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -91,7 +94,7 @@ export default function App() {
     } finally {
       setSolving(false);
     }
-  }, [stickers]);
+  }, [stickers, method]);
 
   const newCube = useCallback(() => {
     change(blankState(scheme));
@@ -113,15 +116,10 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
-            <rect width="32" height="32" rx="7" fill="#1f2430" />
-            {['#f4f5f7', '#11a54a', '#d6262b', '#1f5fd6', '#ffd500', '#ff7a00', '#d6262b', '#f4f5f7', '#11a54a'].map((c, i) => (
-              <rect key={i} x={4 + (i % 3) * 8.3} y={4 + Math.floor(i / 3) * 8.3} width="7.2" height="7.2" rx="1.6" fill={c} />
-            ))}
-          </svg>
+          <Mascot size={52} />
           <div>
-            <h1>Cube Solver</h1>
-            <p className="tagline">Enter your scrambled cube · follow one move at a time</p>
+            <h1>Cube Coach</h1>
+            <p className="tagline">Solve your cube along with me — and learn how it works!</p>
           </div>
         </div>
         <div className="header-actions">
@@ -140,8 +138,8 @@ export default function App() {
 
       {learning && phase === 'input' && (
         <p className="intro">
-          New to cubes? Open <button type="button" className="link-btn" onClick={() => setGuideOpen(true)}>Cube basics</button> for a
-          2-minute guide. Then copy the colors of your cube into the faces below, one face at a time.
+          👋 Hi, I'm Cubey! First copy the colors of your scrambled cube into the faces below. Then we'll solve it together, one small
+          mission at a time. New to cubes? Peek at <button type="button" className="link-btn" onClick={() => setGuideOpen(true)}>Cube basics</button> first.
         </p>
       )}
 
@@ -172,7 +170,9 @@ export default function App() {
             solveError={solveError}
             solverStatus={solverStatus}
             learning={learning}
-            canResume={!!solution && solution.key === encodeState(stickers)}
+            method={method}
+            onMethodChange={setMethod}
+            canResume={!!solution && solution.key === `${method}:${encodeState(stickers)}`}
             onResume={() => setPhase('steps')}
           />
         )}

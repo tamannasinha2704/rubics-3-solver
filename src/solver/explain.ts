@@ -1,7 +1,7 @@
 // Plain-English descriptions of moves and of what a solution is doing.
 
 import { solvedPieceCount } from '../cube/cubeState';
-import type { Move } from '../cube/moves';
+import { isFaceMove, type Move } from '../cube/moves';
 import { validateCube } from '../cube/validation';
 import { COLOR_LABEL, FACE_NAMES, type CenterScheme, type Color, type Face } from '../cube/types';
 
@@ -37,7 +37,27 @@ export interface MoveDescription {
   faceColor: Color;
 }
 
+const ROTATION_TEXT: Record<string, { name: string; how: string }> = {
+  x: { name: 'tip it forward or back', how: 'like the right face turns' },
+  y: { name: 'spin it on the table', how: 'like the top face turns' },
+  z: { name: 'turn it like a steering wheel', how: 'like the front face turns' },
+};
+
 export function describeMove(move: Move, scheme: CenterScheme): MoveDescription {
+  if (!isFaceMove(move)) {
+    const r = ROTATION_TEXT[move.face];
+    const amount = move.turns === 2 ? 'a half turn' : move.turns === 1 ? 'a quarter turn' : 'a quarter turn the other way';
+    const front = COLOR_LABEL[scheme.F].toLowerCase();
+    const flipZ = move.face === 'z' && move.turns === 2;
+    return {
+      headline: `Whole cube · ${r.name} (${amount})`,
+      instruction: flipZ
+        ? `Turn the WHOLE cube over like a steering wheel — a half turn — keeping the ${front} center facing you. The ${COLOR_LABEL[scheme.U].toLowerCase()} center goes to the bottom and ${COLOR_LABEL[scheme.D].toLowerCase()} comes to the top. Don't twist any layer.`
+        : `Turn the WHOLE cube ${amount}, ${r.how}. Don't twist any layer.`,
+      direction: move.turns === 2 ? 'half turn' : move.turns === 1 ? 'clockwise' : 'counterclockwise',
+      faceColor: scheme.F,
+    };
+  }
   const color = scheme[move.face];
   const colorName = COLOR_LABEL[color].toLowerCase();
   const layer = `${LAYER_NAME[move.face]} (${colorName} center)`;

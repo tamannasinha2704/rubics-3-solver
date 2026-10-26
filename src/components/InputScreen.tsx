@@ -20,7 +20,7 @@ import {
   type Sticker,
   type StickerState,
 } from '../cube/types';
-import type { SolverStatus } from '../solver/solverClient';
+import type { SolveMethod, SolverStatus } from '../solver/solverClient';
 import { CubeView } from './CubeView';
 import { IsoCube } from './Diagrams';
 
@@ -73,6 +73,8 @@ interface Props {
   solveError: string | null;
   solverStatus: SolverStatus;
   learning: boolean;
+  method: SolveMethod;
+  onMethodChange: (m: SolveMethod) => void;
   canResume: boolean;
   onResume: () => void;
 }
@@ -311,14 +313,45 @@ export function InputScreen(props: Props) {
 
         <ValidationPanel validation={validation} onShowFace={setActiveFace} />
 
-        <div className="solve-bar">
+        <div className="card solve-bar">
+          <h2 className="card-title">3 · How do you want to solve it?</h2>
+          <div className="method-pick" role="radiogroup" aria-label="Solving method">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={props.method === 'learn'}
+              className={`method ${props.method === 'learn' ? 'is-selected' : ''}`}
+              onClick={() => props.onMethodChange('learn')}
+            >
+              <span className="method-emoji" aria-hidden="true">🧠</span>
+              <span className="method-name">Learn to solve</span>
+              <span className="method-desc">Solve along with the beginner method. About 150 moves, in small missions, each explained.</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={props.method === 'quick'}
+              className={`method ${props.method === 'quick' ? 'is-selected' : ''}`}
+              onClick={() => props.onMethodChange('quick')}
+            >
+              <span className="method-emoji" aria-hidden="true">⚡</span>
+              <span className="method-name">Quick solve</span>
+              <span className="method-desc">The computer's shortest path: about 20 moves, but hard to learn from.</span>
+            </button>
+          </div>
           <button type="button" className="btn btn-primary btn-large" onClick={props.onSolve} disabled={props.solving}>
-            {props.solving ? (props.solverStatus === 'loading' ? 'Preparing solver…' : 'Solving…') : 'Check & solve my cube'}
+            {props.solving
+              ? props.solverStatus === 'loading' && props.method === 'quick'
+                ? 'Preparing solver…'
+                : 'Solving…'
+              : props.method === 'learn'
+                ? "Check my cube & let's learn!"
+                : 'Check & solve my cube'}
           </button>
           <p className="muted small">
-            {props.solverStatus === 'loading' && 'The solver is loading in the background (a few seconds, once).'}
-            {props.solverStatus === 'ready' && 'Solver ready. Everything runs in your browser.'}
-            {props.solverStatus === 'error' && 'The solver failed to load. Try reloading the page.'}
+            {props.method === 'quick' && props.solverStatus === 'loading' && 'The quick solver is loading in the background (a few seconds, once).'}
+            {(props.method === 'learn' || props.solverStatus === 'ready') && 'Everything runs in your browser.'}
+            {props.method === 'quick' && props.solverStatus === 'error' && 'The quick solver failed to load. Try reloading the page.'}
           </p>
           {props.solveError && (
             <p className="callout callout-error" role="alert">

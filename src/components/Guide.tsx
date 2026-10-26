@@ -4,7 +4,8 @@ import { applyMove, moveToString, type Move } from '../cube/moves';
 import { COLOR_HEX, COLOR_LABEL, FACE_NAMES, FACES, faceIndex, type CenterScheme, type Color } from '../cube/types';
 import { PHYSICAL } from '../solver/explain';
 import { CubeView, type CubeViewHandle } from './CubeView';
-import { IsoCube, TurnIllustration } from './Diagrams';
+import { stageInfos } from '../solver/beginner';
+import { IsoCube, Mascot, TurnIllustration } from './Diagrams';
 
 const SECTIONS = ['Hold', 'Notation', 'Clockwise', 'Practice', 'Why', 'Tips'] as const;
 type Section = (typeof SECTIONS)[number];
@@ -14,7 +15,7 @@ const SECTION_TITLES: Record<Section, string> = {
   Notation: 'What the letters mean',
   Clockwise: 'Clockwise vs counterclockwise',
   Practice: 'Practice the moves',
-  Why: 'Why these moves?',
+  Why: 'The beginner method',
   Tips: "Don't lose track",
 };
 
@@ -36,7 +37,9 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
   return (
     <dialog ref={dialogRef} className="guide" onClose={onClose} onCancel={onClose} aria-labelledby="guide-title">
       <div className="guide-head">
-        <h2 id="guide-title">Cube basics</h2>
+        <h2 id="guide-title">
+          <Mascot size={40} /> Cube basics
+        </h2>
         <button type="button" className="btn btn-small" onClick={onClose} aria-label="Close guide">
           ✕ Close
         </button>
@@ -65,7 +68,7 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
                 The six <em>center</em> squares are fixed to the cube's core: turning faces spins them in place but never moves them.
                 That is why each face is named after its center color, no matter how scrambled the other squares are.
               </p>
-              <p>Keep this grip for the whole solve. You only turn layers, never the whole cube.</p>
+              <p>Keep your grip steady and only turn layers. The one exception: at the start of a Learn solve, Cubey asks you to flip the whole cube over once — after that, never turn the whole cube.</p>
             </div>
           </div>
         )}
@@ -153,24 +156,27 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
         {section === 'Why' && (
           <div className="prose">
             <p>
-              This app uses <strong>Kociemba's two-phase algorithm</strong>, the method computer solvers use. It finds a short solution —
-              usually around 20 moves — for exactly the cube you entered, instead of the 100+ moves a beginner method takes.
+              In <strong>Learn to solve</strong> mode we use the <strong>beginner (layer-by-layer) method</strong>. You build the cube
+              from the bottom up, and every stage has a simple goal you can see. Each stage uses one or two short tricks you will soon
+              know by heart:
             </p>
-            <p>The solution has two stages, which the step view shows in learning mode:</p>
-            <ol>
-              <li>
-                <strong>Organize.</strong> Turn every piece so its {lc(scheme.U)} or {lc(scheme.D)} side faces up or down, and gather the
-                middle-layer edges into the middle layer. The cube often looks <em>more</em> scrambled during this stage — that is
-                normal.
-              </li>
-              <li>
-                <strong>Put pieces home.</strong> Using only top/bottom turns and half turns (which keep stage 1's work intact), move every
-                piece to its solved spot.
-              </li>
+            <ol className="stage-list">
+              {stageInfos(lc(scheme.U), lc(scheme.D)).map((st) => (
+                <li key={st.id}>
+                  <span className="stage-emoji" aria-hidden="true">{st.emoji}</span>
+                  <span>
+                    <strong>{st.title}.</strong> {st.goal}
+                  </span>
+                </li>
+              ))}
             </ol>
             <p>
-              Because a computer chooses each move to be as efficient as possible, individual moves don't always have a human-friendly
-              reason. The meters in learning mode show how each move changes how organized the cube is and how many pieces are solved.
+              It takes more moves (about 150) than a computer would, but every move has a reason you can understand — and after a few
+              solves you won't need the app at all.
+            </p>
+            <p>
+              <strong>Quick solve</strong> mode instead uses Kociemba's two-phase algorithm, the method computer solvers use: about 20
+              moves, but they don't follow human-sized steps.
             </p>
           </div>
         )}
@@ -178,8 +184,7 @@ export function Guide({ open, onClose, scheme }: { open: boolean; onClose: () =>
         {section === 'Tips' && (
           <ul className="tips">
             <li>
-              <strong>Never turn the whole cube.</strong> Keep {lc(scheme.U)} on top and {lc(scheme.F)} facing you from the first move
-              to the last.
+              <strong>Don't turn the whole cube</strong> (except the one flip the app asks for at the start). The orientation badges on the 3D view always show which color should be on top and in front.
             </li>
             <li>
               <strong>Check the center</strong> of the layer before you turn it: the instruction names it (e.g. “right side, {lc(scheme.R)}{' '}

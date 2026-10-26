@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { schemeOf } from '../cube/cubeState';
-import { invertMove, moveToString, type Move } from '../cube/moves';
-import { COLOR_HEX, COLOR_LABEL, DEFAULT_SCHEME, FACE_NAMES, faceIndex, type CenterScheme } from '../cube/types';
+import { invertMove, isFaceMove, moveToString, type Move } from '../cube/moves';
+import { COLOR_HEX, COLOR_LABEL, DEFAULT_SCHEME, FACE_NAMES, faceIndex, type CenterScheme, type Color } from '../cube/types';
+import { STAGE_ORDER, type LearnPlan } from '../solver/beginner';
 import { analyzeSolution, describeMove, stageText } from '../solver/explain';
 import type { Solution } from '../solver/solverClient';
 import { CubeView, type CubeViewHandle } from './CubeView';
-import { TurnIllustration } from './Diagrams';
+import { FlipIllustration, Mascot, MiniFace, TurnIllustration } from './Diagrams';
 
 /** Animation length for each speed setting, slowest first. */
 const SPEEDS = [
@@ -27,13 +28,14 @@ interface Props {
 
 interface Anim {
   move: Move;
-  /** Which solution step the card should describe while this animation plays. */
+  /** Which solution step the cards describe while this animation plays. */
   step: number;
-  token: number;
 }
 
+const schemeAt = (state: readonly Color[]): CenterScheme => ({ ...DEFAULT_SCHEME, ...schemeOf(state) });
+
 export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, onNewCube }: Props) {
-  const { moves, states } = solution;
+  const { moves, states, learn } = solution;
   const n = moves.length;
   const cubeRef = useRef<CubeViewHandle>(null);
   const [index, setIndex] = useState(0); // moves completed so far
@@ -41,23 +43,25 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
   const [anim, setAnim] = useState<Anim | null>(null);
   const [playing, setPlaying] = useState(false);
   const tokenRef = useRef(0);
+  /** The mission playback started in; Play stops when that mission is finished. */
+  const playSegmentRef = useRef(-1);
   const ms = SPEEDS[speed]?.ms ?? 750;
 
-  const scheme = useMemo<CenterScheme>(() => ({ ...DEFAULT_SCHEME, ...schemeOf(states[0]) }), [states]);
-  const insight = useMemo(() => analyzeSolution(states, moves), [states, moves]);
-
-  const go = useCallback((to: number) => {
-    tokenRef.current++;
-    setAnim(null);
-    indexRef.current = to;
-    setIndex(to);
-    cubeRef.current?.showNow(states[to]);
-  }, [states]);
+  const go = useCallback(
+    (to: number) => {
+      tokenRef.current++;
+      setAnim(null);
+      indexRef.current = to;
+      setIndex(to);
+      cubeRef.current?.showNow(states[to]);
+    },
+    [states],
+  );
 
   const runAnimation = useCallback(
     (move: Move, step: number, finalState: number) => {
       const token = ++tokenRef.current;
-      setAnim({ move, step, token });
+      setAnim({ move, step });
       cubeRef.current?.animateMove(move, ms, states[finalState]).then(() => {
         if (tokenRef.current === token) setAnim(null);
       });
@@ -96,24 +100,27 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
   }, [go]);
 
   const togglePlay = useCallback(() => {
-    if (indexRef.current >= n) {
-      go(0);
-      setPlaying(true);
-      return;
-    }
-    setPlaying((p) => !p);
-  }, [n, go]);
+    const finished = indexRef.current >= n;
+    if (finished) go(0);
+    playSegmentRef.current = learn?.notes[indexRef.current]?.segment ?? -1;
+    setPlaying((p) => finished || !p);
+  }, [n, go, learn]);
 
   // Auto-play: start the next move shortly after the previous one finishes.
+  // In the solve-along method, playing pauses at the end of every mission so you can catch up.
   useEffect(() => {
     if (!playing || anim) return;
     if (index >= n) {
       setPlaying(false);
       return;
     }
+    if (learn && learn.notes[index].segment !== playSegmentRef.current) {
+      setPlaying(false);
+      return;
+    }
     const t = window.setTimeout(next, index === 0 ? 300 : Math.max(250, ms * 0.6));
     return () => window.clearTimeout(t);
-  }, [playing, anim, index, n, ms, next]);
+  }, [playing, anim, index, n, ms, next, learn]);
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -143,13 +150,9 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
   const done = index >= n && !anim;
   const currentMove = cardStep < n ? moves[cardStep] : null;
   const hint = anim ? anim.move : currentMove;
-  const desc = currentMove ? describeMove(currentMove, scheme) : null;
   const shownState = states[Math.min(cardStep, n)];
-  const faceStickers = currentMove ? shownState.slice(faceIndex(currentMove.face) * 9, faceIndex(currentMove.face) * 9 + 9) : [];
-  const step = insight.steps[Math.min(cardStep, n)];
-  const after = insight.steps[Math.min(cardStep + 1, n)];
-  const stage = currentMove ? (cardStep < insight.stage2Start ? 1 : 2) : 2;
-  const st = stageText(stage, scheme);
+  const scheme = schemeAt(shownState);
+  const desc = currentMove ? describeMove(currentMove, scheme) : null;
 
   return (
     <div className="layout">
@@ -162,7 +165,6 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
             <span>
               <i className="dot" style={{ background: COLOR_HEX[scheme.F] }} /> {COLOR_LABEL[scheme.F]} in front
             </span>
-            <span className="badge-warn">Don't rotate the whole cube</span>
           </div>
           {currentMove && desc && (
             <div className="cube-move-tag" aria-hidden="true">
@@ -171,15 +173,16 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
             </div>
           )}
         </CubeView>
+        {learn && <StageMap plan={learn} index={index} cardStep={cardStep} onJump={(k) => { setPlaying(false); go(k); }} />}
       </section>
 
       <section className="panel-col" aria-label="Solution steps">
         <div className="progress-head">
           <div className="progress-text" aria-live="polite">
-            {n === 0 ? 'Already solved' : done ? `All ${n} moves done` : `Move ${cardStep + 1} of ${n}`}
+            {n === 0 ? 'Already solved' : done ? `All ${n} moves done!` : `Move ${cardStep + 1} of ${n}`}
           </div>
           <div className="muted small">
-            {index} done · {n - index} remaining
+            {index} done · {n - index} to go
           </div>
         </div>
         <div className="progress-bar" role="progressbar" aria-valuemin={0} aria-valuemax={n} aria-valuenow={index} aria-label="Moves completed">
@@ -187,45 +190,46 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
         </div>
 
         {currentMove && desc ? (
-          <div className={`card move-card ${anim ? 'is-animating' : ''}`}>
-            <div className="move-main">
-              <div className="move-notation" aria-label={`Move ${moveToString(currentMove)}`}>
-                {moveToString(currentMove)}
-              </div>
-              <TurnIllustration move={currentMove} stickers={faceStickers} faceColor={desc.faceColor} size={132} />
-            </div>
-            <h2 className="move-headline">
-              <i className="dot" style={{ background: COLOR_HEX[desc.faceColor] }} /> {desc.headline}
-            </h2>
-            <p className="move-instruction">{desc.instruction}</p>
-            {learning && (
-              <div className="learn-box">
-                <p>
-                  <strong>Reading “{moveToString(currentMove)}”:</strong> {currentMove.face} = {FACE_NAMES[currentMove.face]} face.{' '}
-                  {currentMove.turns === 1 && 'No symbol after the letter means a clockwise quarter turn.'}
-                  {currentMove.turns === 3 && 'The apostrophe (say “prime”) means counterclockwise.'}
-                  {currentMove.turns === 2 && 'The 2 means a half turn (180°).'} Clockwise is judged as if you were looking straight at
-                  that face — the picture above shows that view.
-                </p>
-                <p>
-                  <strong>{st.title}.</strong> {st.body}
-                </p>
-                <div className="meters">
-                  <Meter label="Pieces organized (stage 1 goal)" value={step.orientedScore} max={24} delta={after.orientedScore - step.orientedScore} />
-                  <Meter label="Pieces in their final spot" value={step.solvedPieces} max={20} delta={after.solvedPieces - step.solvedPieces} />
+          <>
+            {learn && <LearnCards plan={learn} step={cardStep} states={states} learning={learning} />}
+            <div className={`card move-card ${anim ? 'is-animating' : ''}`}>
+              <div className="move-card-label">{learn ? 'Your move' : 'Next move'}</div>
+              <div className="move-main">
+                <div className="move-notation" aria-label={`Move ${moveToString(currentMove)}`}>
+                  {moveToString(currentMove)}
                 </div>
-                <p className="muted small">Bars show the cube now; the +/− shows what this move changes.</p>
+                {isFaceMove(currentMove) ? (
+                  <TurnIllustration
+                    move={currentMove}
+                    stickers={shownState.slice(faceIndex(currentMove.face) * 9, faceIndex(currentMove.face) * 9 + 9)}
+                    faceColor={desc.faceColor}
+                    size={128}
+                  />
+                ) : (
+                  <FlipIllustration before={shownState} after={states[Math.min(cardStep + 1, n)]} />
+                )}
               </div>
-            )}
-          </div>
+              <h2 className="move-headline">
+                <i className="dot" style={{ background: COLOR_HEX[desc.faceColor] }} /> {desc.headline}
+              </h2>
+              <p className="move-instruction">{desc.instruction}</p>
+              {learn ? (
+                <MoveWhy plan={learn} step={cardStep} />
+              ) : (
+                learning && <QuickLearnBox solution={solution} step={cardStep} move={currentMove} scheme={scheme} />
+              )}
+            </div>
+          </>
         ) : (
           <div className="card done-card">
-            <div className="done-emoji" aria-hidden="true">🎉</div>
-            <h2>{n === 0 ? 'Your cube is already solved!' : 'Solved!'}</h2>
+            <Mascot mood="cheer" size={96} />
+            <h2>{n === 0 ? 'Your cube is already solved!' : 'Solved! You did it!'}</h2>
             <p>
               {n === 0
                 ? 'Every face is a single color, so there is nothing to do.'
-                : 'If you did every move, your cube is now solved. If not, press Restart, undo your moves by reversing them, or re-enter the cube.'}
+                : learn
+                  ? 'You just solved a Rubik’s Cube with the beginner method. Scramble it and try again — each time you will need the app a little less. Soon you will spot the daisy, the corners and the tricks on your own!'
+                  : 'If you did every move, your cube is now solved. If not, press Restart or re-enter the cube.'}
             </p>
             <div className="row">
               {n > 0 && (
@@ -247,10 +251,10 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
                 ⏮ <span>Restart</span>
               </button>
               <button type="button" className="btn ctrl" onClick={prev} disabled={index === 0} title="Previous move (←)">
-                ◀ <span>Previous</span>
+                ◀ <span>Back</span>
               </button>
               <button type="button" className="btn ctrl" onClick={togglePlay} title="Play / pause (Space)" aria-pressed={playing}>
-                {playing ? '⏸' : '▶'} <span>{playing ? 'Pause' : 'Play'}</span>
+                {playing ? '⏸' : '▶'} <span>{playing ? 'Pause' : learn ? 'Play mission' : 'Play'}</span>
               </button>
               <button
                 type="button"
@@ -282,44 +286,26 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
                 />
               </label>
             </div>
-            <p className="muted small">Tip: press Next, watch the animation, then do the same turn on your cube.</p>
+            <p className="muted small">
+              {learn
+                ? 'Solve along: read the mission, press Next, watch, then copy the move on your cube. Play runs one mission at a time.'
+                : 'Tip: press Next, watch the animation, then do the same turn on your cube.'}
+            </p>
           </div>
         )}
 
         {n > 0 && (
-          <div className="card">
-            <h2 className="card-title">
-              All moves <span className="muted small">(tap one to jump there)</span>
-            </h2>
-            <ol className="move-list">
-              {moves.map((m, k) => {
-                const status = k < index ? 'done' : k === cardStep && !done ? 'current' : 'todo';
-                return (
-                  <li key={k}>
-                    <button
-                      type="button"
-                      className={`move-chip chip-${status} ${k === insight.stage2Start && k > 0 ? 'stage-start' : ''}`}
-                      onClick={() => {
-                        setPlaying(false);
-                        go(k);
-                      }}
-                      title={`${k < index ? 'Done' : 'To do'}: move ${k + 1}, ${describeMove(m, scheme).headline}`}
-                      aria-current={status === 'current' ? 'step' : undefined}
-                    >
-                      <span className="chip-num">{k + 1}</span>
-                      {moveToString(m)}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-            <div className="legend muted small">
-              <span><i className="legend-swatch chip-done" /> completed</span>
-              <span><i className="legend-swatch chip-current" /> current</span>
-              <span><i className="legend-swatch chip-todo" /> remaining</span>
-              {learning && insight.stage2Start > 0 && insight.stage2Start < n && <span>│ stage 2 starts at move {insight.stage2Start + 1}</span>}
-            </div>
-          </div>
+          <MoveList
+            moves={moves}
+            learn={learn}
+            index={index}
+            cardStep={cardStep}
+            done={done}
+            onJump={(k) => {
+              setPlaying(false);
+              go(k);
+            }}
+          />
         )}
 
         <div className="row">
@@ -335,18 +321,260 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
   );
 }
 
+// ------------------------------------------------------------------ solve-along cards
+
+function LearnCards({ plan, step, states, learning }: { plan: LearnPlan; step: number; states: Color[][]; learning: boolean }) {
+  const note = plan.notes[step];
+  const seg = plan.segments[note.segment];
+  const stage = plan.stages.find((s) => s.id === seg.stage)!;
+  const stageNumber = STAGE_ORDER.indexOf(stage.id) + 1;
+  const stageMoves = plan.segments.filter((s) => s.stage === stage.id);
+  const stageStart = stageMoves[0].firstMove;
+  const stageEnd = stageMoves[stageMoves.length - 1].firstMove + stageMoves[stageMoves.length - 1].moveCount;
+  const newStage = step === stageStart;
+  const goalState = states[stageEnd];
+  const goalFace = goalState.slice(faceIndex(stage.showFace) * 9, faceIndex(stage.showFace) * 9 + 9);
+  const missionNumber = plan.segments.filter((s, i) => s.stage === stage.id && i <= note.segment).length;
+
+  return (
+    <>
+      <div className={`card stage-card ${newStage ? 'is-new' : ''}`}>
+        <div className="stage-head">
+          <span className="stage-emoji" aria-hidden="true">{stage.emoji}</span>
+          <div>
+            <div className="stage-kicker">
+              Stage {stageNumber} of {STAGE_ORDER.length}
+              {newStage && <span className="new-badge">New stage!</span>}
+            </div>
+            <h2 className="stage-title">{stage.title}</h2>
+          </div>
+          {stage.id !== 'flip' && (
+            <figure className="goal-pic">
+              <MiniFace stickers={goalFace} size={58} label={`The ${FACE_NAMES[stage.showFace].toLowerCase()} face when this stage is done`} />
+              <figcaption>goal</figcaption>
+            </figure>
+          )}
+        </div>
+        <p className="stage-goal">
+          <strong>Goal:</strong> {stage.goal}
+        </p>
+        {learning && newStage && <p className="stage-think">💡 {stage.think}</p>}
+      </div>
+
+      <div className="card mission-card">
+        <div className="mission-kicker">
+          Mission {missionNumber} of {stageMoves.length}
+        </div>
+        <h3 className="mission-title">{seg.title}</h3>
+        {learning && (
+          <div className="coach">
+            <Mascot mood="thinking" size={54} />
+            <p className="bubble">
+              <strong>How to think: </strong>
+              {seg.think}
+            </p>
+          </div>
+        )}
+        {seg.trick && <TrickTracker plan={plan} step={step} />}
+      </div>
+    </>
+  );
+}
+
+function TrickTracker({ plan, step }: { plan: LearnPlan; step: number }) {
+  const note = plan.notes[step];
+  const seg = plan.segments[note.segment];
+  const trick = seg.trick!;
+  const tokens = trick.notation.split(' ');
+  const rounds = new Set(
+    plan.notes.slice(seg.firstMove, seg.firstMove + seg.moveCount).map((x) => x.round).filter((r) => r !== undefined),
+  ).size;
+  return (
+    <div className="trick">
+      <div className="trick-head">
+        <span className="trick-name">🪄 {trick.name}</span>
+        {note.round !== undefined && rounds > 1 && (
+          <span className="trick-round">
+            round {note.round} of {rounds}
+          </span>
+        )}
+        {note.trickStep === undefined && <span className="trick-round">set-up move first</span>}
+      </div>
+      <ol className="trick-moves" aria-label="Moves of this trick">
+        {tokens.map((tok, i) => (
+          <li
+            key={i}
+            className={note.trickStep === undefined ? '' : i < note.trickStep ? 'is-done' : i === note.trickStep ? 'is-now' : ''}
+          >
+            {tok}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function MoveWhy({ plan, step }: { plan: LearnPlan; step: number }) {
+  const note = plan.notes[step];
+  const seg = plan.segments[note.segment];
+  const before = step > seg.firstMove ? plan.notes[step - 1].piece : undefined;
+  return (
+    <div className="why-box">
+      <p>
+        <strong>Why: </strong>
+        {note.why}
+      </p>
+      {note.piece && (
+        <p className="piece-track">
+          <span aria-hidden="true">📍</span> Our piece
+          {before === note.piece ? ' stays at' : before ? <> goes from <em>{before}</em> to</> : ' ends up at'} <strong>{note.piece}</strong>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function QuickLearnBox({ solution, step, move, scheme }: { solution: Solution; step: number; move: Move; scheme: CenterScheme }) {
+  const insight = useMemo(() => analyzeSolution(solution.states, solution.moves), [solution]);
+  const s = insight.steps[Math.min(step, solution.moves.length)];
+  const after = insight.steps[Math.min(step + 1, solution.moves.length)];
+  const st = stageText(step < insight.stage2Start ? 1 : 2, scheme);
+  return (
+    <div className="why-box">
+      <p>
+        <strong>Reading “{moveToString(move)}”:</strong> {isFaceMove(move) ? `${move.face} = ${FACE_NAMES[move.face]} face. ` : ''}
+        {move.turns === 1 && 'No symbol means a clockwise quarter turn.'}
+        {move.turns === 3 && 'The apostrophe (say “prime”) means counterclockwise.'}
+        {move.turns === 2 && 'The 2 means a half turn.'} Clockwise is judged looking straight at that face.
+      </p>
+      <p>
+        <strong>{st.title}.</strong> {st.body}
+      </p>
+      <div className="meters">
+        <Meter label="Pieces organized" value={s.orientedScore} max={24} delta={after.orientedScore - s.orientedScore} />
+        <Meter label="Pieces in their final spot" value={s.solvedPieces} max={20} delta={after.solvedPieces - s.solvedPieces} />
+      </div>
+      <p className="muted small">Quick mode uses the computer's shortest path, so moves don't follow human steps. Choose “Learn to solve” for a solve-along explanation.</p>
+    </div>
+  );
+}
+
 function Meter({ label, value, max, delta }: { label: string; value: number; max: number; delta: number }) {
   return (
     <div className="meter">
       <div className="meter-head">
         <span>{label}</span>
         <span>
-          {value}/{max}{' '}
-          {delta !== 0 && <span className={delta > 0 ? 'delta-up' : 'delta-down'}>{delta > 0 ? `+${delta}` : delta}</span>}
+          {value}/{max} {delta !== 0 && <span className={delta > 0 ? 'delta-up' : 'delta-down'}>{delta > 0 ? `+${delta}` : delta}</span>}
         </span>
       </div>
       <div className="meter-bar">
         <div style={{ width: `${(value / max) * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ overview
+
+function StageMap({ plan, index, cardStep, onJump }: { plan: LearnPlan; index: number; cardStep: number; onJump: (k: number) => void }) {
+  const current = cardStep < plan.notes.length ? plan.segments[plan.notes[cardStep].segment].stage : null;
+  return (
+    <nav className="card stage-map" aria-label="Stages of the solve">
+      <h2 className="card-title">Your journey</h2>
+      <ol>
+        {plan.stages.map((st, i) => {
+          const segs = plan.segments.filter((s) => s.stage === st.id);
+          const start = segs[0]?.firstMove;
+          const end = segs.length ? segs[segs.length - 1].firstMove + segs[segs.length - 1].moveCount : undefined;
+          const status = !segs.length
+            ? 'skipped'
+            : st.id === current
+              ? 'current'
+              : end !== undefined && index >= end
+                ? 'done'
+                : 'todo';
+          return (
+            <li key={st.id} className={`stage-pill pill-${status}`}>
+              <button type="button" disabled={!segs.length} onClick={() => start !== undefined && onJump(start)} title={st.goal}>
+                <span className="pill-emoji" aria-hidden="true">{status === 'done' || status === 'skipped' ? '✓' : st.emoji}</span>
+                <span className="pill-text">
+                  {i + 1}. {st.title}
+                  {status === 'skipped' && <em> — already done</em>}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+interface MoveListProps {
+  moves: Move[];
+  learn?: LearnPlan;
+  index: number;
+  cardStep: number;
+  done: boolean;
+  onJump: (k: number) => void;
+}
+
+function MoveList({ moves, learn, index, cardStep, done, onJump }: MoveListProps) {
+  const chip = (m: Move, k: number) => {
+    const status = k < index ? 'done' : k === cardStep && !done ? 'current' : 'todo';
+    return (
+      <li key={k}>
+        <button
+          type="button"
+          className={`move-chip chip-${status}`}
+          onClick={() => onJump(k)}
+          title={`${k < index ? 'Done' : 'To do'}: move ${k + 1}`}
+          aria-current={status === 'current' ? 'step' : undefined}
+        >
+          <span className="chip-num">{k + 1}</span>
+          {moveToString(m)}
+        </button>
+      </li>
+    );
+  };
+  const groups = learn
+    ? learn.stages
+        .map((st) => {
+          const segs = learn.segments.filter((s) => s.stage === st.id);
+          if (!segs.length) return null;
+          const from = segs[0].firstMove;
+          const to = segs[segs.length - 1].firstMove + segs[segs.length - 1].moveCount;
+          return { title: `${st.emoji} ${st.title}`, from, to };
+        })
+        .filter((g): g is { title: string; from: number; to: number } => g !== null)
+    : [{ title: '', from: 0, to: moves.length }];
+
+  return (
+    <div className="card">
+      <h2 className="card-title">
+        All moves <span className="muted small">(tap one to jump there)</span>
+      </h2>
+      {groups.map((g) => (
+        <details key={g.from} className="move-group" open={!learn || (cardStep >= g.from && cardStep < g.to)}>
+          {learn && (
+            <summary>
+              {g.title} <span className="muted small">· {g.to - g.from} moves</span>
+            </summary>
+          )}
+          <ol className="move-list">{moves.slice(g.from, g.to).map((m, i) => chip(m, g.from + i))}</ol>
+        </details>
+      ))}
+      <div className="legend muted small">
+        <span>
+          <i className="legend-swatch chip-done" /> done
+        </span>
+        <span>
+          <i className="legend-swatch chip-current" /> now
+        </span>
+        <span>
+          <i className="legend-swatch chip-todo" /> to do
+        </span>
       </div>
     </div>
   );

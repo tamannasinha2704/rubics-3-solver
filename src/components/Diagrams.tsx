@@ -1,7 +1,7 @@
 // Small SVG illustrations: an isometric cube and a face-on "turn this way" picture.
 
 import { FACELETS, FACE_NORMALS, type Vec3 } from '../cube/geometry';
-import type { Move } from '../cube/moves';
+import type { FaceMove } from '../cube/moves';
 import { COLOR_HEX, COLOR_LABEL, EMPTY_HEX, FACE_NAMES, type Color, type Face, type Sticker } from '../cube/types';
 
 const project = ([x, y, z]: Vec3): [number, number] => [(x - z) * 0.866, -y + (x + z) * 0.5];
@@ -87,7 +87,7 @@ const TOP_OF: Record<Face, string> = {
 };
 
 interface TurnProps {
-  move: Move;
+  move: FaceMove;
   /** The nine stickers of the face, as seen looking straight at it. */
   stickers: readonly Sticker[];
   faceColor: Color;
@@ -117,7 +117,7 @@ export function TurnIllustration({ move, stickers, faceColor, size = 150 }: Turn
     <figure className="turn-figure">
       <svg viewBox="-2.9 -2.9 5.8 5.8" width={size} height={size} role="img" aria-label={label}>
         <title>{label}</title>
-        <rect x={-1.6} y={-1.6} width={3.2} height={3.2} rx={0.25} fill="#1b1d22" />
+        <rect x={-1.62} y={-1.62} width={3.24} height={3.24} rx={0.3} fill="#1b1d22" stroke="var(--ink)" strokeWidth={0.08} />
         {stickers.map((s, i) => (
           <rect
             key={i}
@@ -149,5 +149,66 @@ export function TurnIllustration({ move, stickers, faceColor, size = 150 }: Turn
         ({TOP_OF[move.face]})
       </figcaption>
     </figure>
+  );
+}
+
+/** Before → after pictures for a whole-cube turn. */
+export function FlipIllustration({ before, after, size = 92 }: { before: readonly Sticker[]; after: readonly Sticker[]; size?: number }) {
+  return (
+    <figure className="turn-figure flip-figure">
+      <div className="flip-row">
+        <IsoCube colors={before} size={size} title="The cube before turning it over" />
+        <svg viewBox="0 0 40 30" width={40} height={30} aria-hidden="true">
+          <path d="M4 15 H30" stroke="var(--move)" strokeWidth={4} strokeLinecap="round" />
+          <path d="M26 7 L36 15 L26 23 Z" fill="var(--move)" />
+        </svg>
+        <IsoCube colors={after} size={size} title="The cube after turning it over" />
+      </div>
+      <figcaption>Turn the whole cube — no layer twists</figcaption>
+    </figure>
+  );
+}
+
+/** A small flat picture of one face. */
+export function MiniFace({ stickers, size = 64, label }: { stickers: readonly Sticker[]; size?: number; label: string }) {
+  return (
+    <svg viewBox="-0.1 -0.1 3.2 3.2" width={size} height={size} role="img" aria-label={label} className="mini-face">
+      <title>{label}</title>
+      <rect x={-0.08} y={-0.08} width={3.16} height={3.16} rx={0.3} fill="#1b1d22" />
+      {stickers.map((s, i) => (
+        <rect key={i} x={(i % 3) + 0.07} y={Math.floor(i / 3) + 0.07} width={0.86} height={0.86} rx={0.16} fill={s ? COLOR_HEX[s] : EMPTY_HEX} />
+      ))}
+    </svg>
+  );
+}
+
+export type Mood = 'happy' | 'thinking' | 'cheer';
+
+/** "Cubey", the friendly coach. */
+export function Mascot({ mood = 'happy', size = 64 }: { mood?: Mood; size?: number }) {
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} className={`mascot mascot-${mood}`} aria-hidden="true">
+      <g className="mascot-body">
+        <rect x="6" y="8" width="52" height="50" rx="12" fill="#ffd23f" stroke="var(--ink)" strokeWidth="3" />
+        <path d="M6 26 H58 M6 42 H58 M23 8 V58 M41 8 V58" stroke="var(--ink)" strokeWidth="1.6" opacity="0.25" />
+        <circle cx="24" cy="30" r="6.5" fill="#fff" stroke="var(--ink)" strokeWidth="2.5" />
+        <circle cx="40" cy="30" r="6.5" fill="#fff" stroke="var(--ink)" strokeWidth="2.5" />
+        {mood === 'thinking' ? (
+          <>
+            <circle cx="26" cy="27.5" r="3" fill="var(--ink)" />
+            <circle cx="42" cy="27.5" r="3" fill="var(--ink)" />
+            <path d="M25 46 Q32 43 39 46" stroke="var(--ink)" strokeWidth="3" fill="none" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <circle cx="25" cy="31" r="3" fill="var(--ink)" />
+            <circle cx="41" cy="31" r="3" fill="var(--ink)" />
+            <path d={mood === 'cheer' ? 'M22 42 Q32 54 42 42 Z' : 'M23 43 Q32 50 41 43'} stroke="var(--ink)" strokeWidth="3" fill={mood === 'cheer' ? '#ff5c8a' : 'none'} strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )}
+        <circle cx="15" cy="40" r="3.5" fill="#ff8fb1" opacity="0.7" />
+        <circle cx="49" cy="40" r="3.5" fill="#ff8fb1" opacity="0.7" />
+      </g>
+    </svg>
   );
 }

@@ -13,7 +13,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { FACELETS, FACE_NORMALS, type Vec3 } from '../cube/geometry';
-import type { Move } from '../cube/moves';
+import { isRotation, moveAxis, type Move } from '../cube/moves';
 import { COLOR_HEX, EMPTY_HEX, type Face, type Sticker } from '../cube/types';
 
 const ACCENT = '#ff2e93';
@@ -288,20 +288,21 @@ export class CubeRenderer {
     }
     if (!move) return;
 
-    const n = new THREE.Vector3(...FACE_NORMALS[move.face]);
+    const whole = isRotation(move);
+    const n = new THREE.Vector3(...moveAxis(move));
     const group = new THREE.Group();
     group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
-    group.position.copy(n);
+    if (!whole) group.position.copy(n);
 
-    // Outline of the layer that turns.
-    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.08, 3.08, 1.08));
+    // Outline of the layer that turns (the whole cube for a rotation).
+    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.08, 3.08, whole ? 3.08 : 1.08));
     const frame = new LineSegments2(new LineSegmentsGeometry().fromEdgesGeometry(edges), this.lineMaterial);
     group.add(frame);
 
     // Curved arrow around the layer. Clockwise (seen from the face) = decreasing angle.
     const spinner = new THREE.Group();
     const arrowMat = new THREE.MeshStandardMaterial({ color: ACCENT, emissive: ACCENT, emissiveIntensity: 0.45 });
-    const radius = 2.25;
+    const radius = whole ? 2.5 : 2.25;
     const arc = move.turns === 2 ? Math.PI * 1.1 : Math.PI * 0.5;
     const torus = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.05, 10, 64, arc), arrowMat);
     torus.rotation.z = -arc / 2;
@@ -330,9 +331,11 @@ export class CubeRenderer {
    */
   animateMove(move: Move, durationMs: number, finalColors: readonly Sticker[]): Promise<void> {
     this.finishAnimation();
-    const axis = new THREE.Vector3(...FACE_NORMALS[move.face]);
+    const axis = new THREE.Vector3(...moveAxis(move));
     const angle = move.turns === 3 ? Math.PI / 2 : -(Math.PI / 2) * move.turns;
-    const layer = this.cubies.filter((c) => (c.userData.home as THREE.Vector3).dot(axis) > 0.5);
+    const layer = isRotation(move)
+      ? this.cubies.slice()
+      : this.cubies.filter((c) => (c.userData.home as THREE.Vector3).dot(axis) > 0.5);
     layer.forEach((c) => this.pivot.add(c));
     const duration = Math.max(1, move.turns === 2 ? durationMs * 1.5 : durationMs);
     return new Promise((resolve) => {
