@@ -198,5 +198,8 @@ Copyright © 2026 Tamanna Sinha. Released under the [MIT License](LICENSE). Thir
   [cubejs](https://github.com/ldez/cubejs) by Petri Lehtinen and Ludovic Fernandez, used under the
   MIT License (see `src/solver/vendor/cubejs/LICENSE`). Its copyright notice must stay with
   those files.
-- The site is built with [React](https://react.dev/) and [three.js](https://threejs.org/), both
-  under the MIT License.
+- The site is built with [React](https://react.dev/) and [three.js](https://threejs.org/) (both MIT)
+  and uses the Fredoka and Nunito fonts (SIL Open Font License), bundled with the site.
+- Every build publishes the license texts of all bundled packages as `licenses.txt`, linked
+  from the site footer. The site loads nothing from third-party servers: no fonts, trackers
+  or APIs.

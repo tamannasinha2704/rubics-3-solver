@@ -181,7 +181,7 @@ export default function App() {
       <footer className="app-footer">
         <p className="footer-owner">
           © {new Date().getFullYear()} Tamanna Sinha · Cube Coach · <a href="https://github.com/tamannasinha2704/rubics-3-solver">Source on GitHub</a>{' '}
-          (MIT License)
+          (MIT License) · <a href={`${import.meta.env.BASE_URL}licenses.txt`}>Open-source licenses</a>
         </p>
         <p>
           Quick solve uses Kociemba's two-phase algorithm via the open-source{' '}
