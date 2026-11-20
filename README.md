@@ -130,6 +130,8 @@ name. The workflow reads it automatically.
 
 Every later `git push` to `main` redeploys automatically.
 
+Pull requests into `main` also run `.github/workflows/pr-checks.yml` (type check, tests and a production build), so the pull request shows a pass or fail before you merge.
+
 > **How the base path works:** GitHub Pages serves project sites from `/<repo-name>/`. The
 > workflow passes that path to Vite as `BASE_PATH` (see `vite.config.ts`), so asset and
 > Web Worker URLs resolve correctly. If the repository is named `<username>.github.io`, the site
