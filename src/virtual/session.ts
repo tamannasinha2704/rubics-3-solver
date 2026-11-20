@@ -11,7 +11,7 @@ import { buildVerifiedSolution, type Solution } from '../solver/solverClient';
 export const SHUFFLES = [
   { id: 'easy', label: 'Easy', moves: 5, note: '5 random turns' },
   { id: 'medium', label: 'Medium', moves: 12, note: '12 random turns' },
-  { id: 'full', label: 'Full shuffle', moves: 25, note: '25 random turns, like a competition scramble' },
+  { id: 'hard', label: 'Hard', moves: 25, note: '25 random turns, like a competition scramble' },
 ] as const;
 
 /**
@@ -44,6 +44,12 @@ export interface Coach {
   solution: Solution;
   /** How many of its moves have been made since (the next move is solution.moves[step]). */
   step: number;
+  /**
+   * Set when the next planned move is a half turn and the player has made the
+   * first quarter of it (dragging only makes quarter turns): the same quarter
+   * turn again completes it.
+   */
+  halfDone?: Move;
 }
 
 export function makeCoach(state: Color[]): Coach | null {
@@ -52,14 +58,20 @@ export function makeCoach(state: Color[]): Coach | null {
   return { solution: buildVerifiedSolution(state, plan.moves, 0, plan), step: 0 };
 }
 
-export const nextCoachMove = (coach: Coach | null): Move | null =>
+/** The planned move, as written in the plan (a half turn stays e.g. "U2"). */
+export const plannedMove = (coach: Coach | null): Move | null =>
   coach && coach.step < coach.solution.moves.length ? coach.solution.moves[coach.step] : null;
+
+/** What the player should do right now: the planned move, or the second half of a half turn. */
+export const nextCoachMove = (coach: Coach | null): Move | null => coach?.halfDone ?? plannedMove(coach);
 
 export interface MoveResult {
   state: Color[];
   coach: Coach | null;
   /** True when the player followed the suggested move. */
   onPlan: boolean;
+  /** True when this move was the first quarter of a planned half turn. */
+  halfway: boolean;
   solved: boolean;
 }
 
@@ -68,12 +80,16 @@ export function playMove(state: Color[], coach: Coach | null, move: Move): MoveR
   const next = applyMove(state, move);
   const solved = isSolved(next);
   const suggested = nextCoachMove(coach);
+  const planned = plannedMove(coach);
   if (coach && suggested && sameMove(suggested, move)) {
-    const advanced = { solution: coach.solution, step: coach.step + 1 };
-    return { state: next, coach: solved ? null : advanced, onPlan: true, solved };
+    const advanced: Coach = { solution: coach.solution, step: coach.step + 1 };
+    return { state: next, coach: solved ? null : advanced, onPlan: true, halfway: false, solved };
   }
-  // Turning the whole cube never changes how solved it is, so only replan from real positions.
-  return { state: next, coach: solved ? null : makeCoach(next), onPlan: false, solved };
+  // A quarter turn of the face a planned half turn uses is the first half of it.
+  if (coach && planned && !coach.halfDone && planned.turns === 2 && planned.face === move.face && move.turns !== 2) {
+    return { state: next, coach: { ...coach, halfDone: move }, onPlan: true, halfway: true, solved };
+  }
+  return { state: next, coach: solved ? null : makeCoach(next), onPlan: false, halfway: false, solved };
 }
 
 /** Moves that count toward the player's move counter (whole-cube turns do not). */

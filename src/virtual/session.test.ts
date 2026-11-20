@@ -62,6 +62,28 @@ describe('virtual cube session', () => {
     }
   });
 
+  it('accepts a half turn made as two quarter turns (as dragging does)', () => {
+    for (let k = 0; k < 40; k++) {
+      let state: Color[] = applyMoves(solvedState(), randomScramble(25));
+      let coach = makeCoach(state);
+      let guard = 0;
+      while (coach && guard++ < 600) {
+        const m = nextCoachMove(coach)!;
+        // Split every half turn into two quarter turns, alternating the direction used.
+        const quarter: Move = m.turns === 2 ? { face: m.face, turns: guard % 2 ? 1 : 3 } : m;
+        const r = playMove(state, coach, quarter);
+        expect(r.onPlan).toBe(true);
+        if (m.turns === 2) {
+          expect(r.halfway).toBe(true);
+          expect(nextCoachMove(r.coach)).toEqual(quarter);
+        }
+        state = r.state;
+        coach = r.coach;
+      }
+      expect(isSolved(state)).toBe(true);
+    }
+  });
+
   it('a solved cube needs no coach', () => {
     expect(makeCoach(solvedState())).toBeNull();
   });

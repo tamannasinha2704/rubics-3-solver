@@ -1882,11 +1882,11 @@ h3 {
   border-color: var(--ink);
 }
 
-.virtual .viewer-col {
-  position: static;
-}
 .virtual .cube-view.cube-large {
-  height: min(56vh, 520px);
+  height: min(72vh, 660px);
+}
+.virtual .cube-canvas {
+  cursor: grab;
 }
 
 .segmented {
@@ -1927,31 +1927,34 @@ h3 {
   word-break: break-word;
 }
 
-.stats-card {
-  display: flex;
-  justify-content: space-around;
-  gap: 10px;
-  padding: 12px 16px;
-}
-.stat {
+.control-card {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+.control-foot {
+  display: flex;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.stat-label {
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+.control-foot .link-btn {
+  margin-left: auto;
 }
-.stat-value {
+.status-pill {
   font-family: var(--font-fun);
-  font-size: 1.35rem;
   font-weight: 700;
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--surface-2);
 }
-.stat-value.is-solved {
-  color: var(--success);
+.status-pill.is-solved {
+  background: var(--success);
+  color: #fff;
+}
+.scramble-text {
+  margin: 0 !important;
 }
 
 .notice .bubble {
@@ -1996,61 +1999,6 @@ kbd {
   white-space: nowrap;
 }
 
-.move-pad .card-title {
-  margin: 0;
-}
-.pad-head {
-  margin: 0 0 10px !important;
-}
-.pad-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-.pad-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.pad-label {
-  font-size: 0.82rem;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-.pad-buttons {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-}
-.pad-btn {
-  min-height: 40px;
-  padding: 4px 0;
-  font-size: 1rem;
-  box-shadow: 0 3px 0 var(--ink);
-}
-.pad-btn.is-next {
-  background: var(--move);
-  color: #fff;
-  animation: nudge 1.2s ease-in-out infinite;
-}
-@keyframes nudge {
-  50% {
-    transform: translateY(-2px);
-  }
-}
-.pad-subtitle {
-  font-size: 0.95rem;
-  margin: 14px 0 8px;
-}
-.pad-keys {
-  margin: 12px 0 0 !important;
-  line-height: 1.9;
-}
-
 @media (max-width: 600px) {
   .app-header {
     justify-content: center;
@@ -2063,13 +2011,7 @@ kbd {
     flex: 1;
     justify-content: center;
   }
-  .pad-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .pad-keys {
-    display: none;
-  }
-  .stat-value {
-    font-size: 1.15rem;
+  .virtual .cube-view.cube-large {
+    height: 52vh;
   }
 }

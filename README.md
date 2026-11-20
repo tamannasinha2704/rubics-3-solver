@@ -61,22 +61,23 @@ solution (about 20 moves) instead.
 
 ## Virtual cube
 
-No cube in your hand? The **Virtual cube** section gives you a 3D cube to solve on screen.
+No cube in your hand? The **Virtual cube** section gives you a 3D cube to solve on screen. It keeps the screen simple: the cube, **Learning mode / Free play**, and **Easy / Medium / Hard** shuffles.
 
-- **Shuffle options:** Easy (5 random turns), Medium (12) or Full shuffle (25, like a
-  competition scramble). The scramble is shown in notation, and "Reset to solved" starts over.
-  Scrambles never waste turns, so a turn is never followed by the same face or sandwiched
-  between turns of its opposite face.
-- **Turning the cube:** on-screen buttons for all 18 face turns plus whole-cube turns
-  (x, y, z), or the keyboard: U D F B L R turn a face, X Y Z turn the cube, Shift makes it
-  counterclockwise, and Ctrl+Z undoes.
+- **Turn it by dragging**, like a real cube. Drag a row or column of stickers to turn that
+  layer, and drag a middle row or column to turn the whole cube. Drag next to the cube to look
+  around it. Drags that start in the gaps between stickers still work. The Undo button on the
+  cube (or Ctrl+Z) takes a turn back. Keyboard turns also work (U D F B L R, X Y Z, Shift for
+  counterclockwise).
+- **Shuffles:** Easy (5 random turns), Medium (12) or Hard (25). Scrambles never waste turns:
+  a turn is never followed by the same face, or sandwiched between turns of its opposite face.
 - **Learning mode:** Cubey coaches you through the beginner method with the same stage,
-  mission, trick and why cards as the main solver. The suggested move is highlighted on the
-  cube and on its button. Make it yourself or press "Do it for me". If you take a different
-  turn, the plan adapts from the new position. It always keeps building on the white cross, so
-  it never asks you to flip the cube again.
+  mission, trick and why cards as the main solver, and says which way to drag. The pink arrow
+  on the cube shows the layer and direction. Since a drag is a quarter turn, a half turn such as
+  B2 is two drags the same way, and the coach counts the first one as halfway. If you take a
+  different turn, the plan adapts from the new position. It always keeps building on the white
+  cross, so it never asks you to flip the cube back over.
 - **Free play** (Learning mode off): solve it your own way with a timer and turn counter. Press
-  "Show a hint" (or H) to light up the next beginner-method move.
+  "Show a hint" (or H) to light up the next move.
 
 ## Run it locally
 
@@ -154,6 +155,7 @@ src/
     beginner.ts         Beginner-method solver that explains every move
   virtual/
     session.ts          Virtual cube: scrambles and a coaching plan that follows the player
+  cube/drag.ts          Which turn a drag on a sticker makes
     solverCore.ts       Wrapper around the Kociemba solver
     solver.worker.ts    Runs the solver off the main thread
     solverClient.ts     Promise API, plus independent verification of every solution

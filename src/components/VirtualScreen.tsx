@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSolved, schemeOf, solvedState } from '../cube/cubeState';
-import { applyMove, invertMove, isFaceMove, moveToString, movesToString, type Move, type Rotation } from '../cube/moves';
-import { COLOR_HEX, COLOR_LABEL, COLORS, DEFAULT_SCHEME, FACE_NAMES, faceIndex, type CenterScheme, type Color, type Face } from '../cube/types';
-import { describeMove } from '../solver/explain';
-import { countsAsTurn, makeCoach, nextCoachMove, playMove, randomScramble, SHUFFLES, type Coach } from '../virtual/session';
+import { applyMove, invertMove, isFaceMove, moveToString, movesToString, type Move } from '../cube/moves';
+import { COLOR_HEX, COLOR_LABEL, COLORS, DEFAULT_SCHEME, faceIndex, type CenterScheme, type Color } from '../cube/types';
+import { describeMove, LAYER_NAME, PHYSICAL } from '../solver/explain';
+import { countsAsTurn, makeCoach, nextCoachMove, playMove, plannedMove, randomScramble, SHUFFLES, type Coach } from '../virtual/session';
 import { isBoolean, useStoredState } from '../hooks/useStoredState';
 import { CubeView, type CubeViewHandle } from './CubeView';
 import { FlipIllustration, Mascot, TurnIllustration } from './Diagrams';
@@ -26,16 +26,34 @@ const isColorState = (v: unknown): v is Color[] =>
   Array.isArray(v) && v.length === 54 && v.every((s) => (COLORS as readonly unknown[]).includes(s));
 const isString = (v: unknown): v is string => typeof v === 'string';
 
-const PAD_FACES: Face[] = ['U', 'D', 'F', 'B', 'L', 'R'];
-const ROTATIONS: Rotation[] = ['x', 'y', 'z'];
-const ROTATION_NAME: Record<Rotation, string> = { x: 'Tip (x)', y: 'Spin (y)', z: 'Roll (z)' };
 const KEY_FOR: Record<string, Move['face']> = { u: 'U', d: 'D', f: 'F', b: 'B', l: 'L', r: 'R', x: 'x', y: 'y', z: 'z' };
+
+/** How to make a whole-cube turn by dragging the cube's middle. */
+const ROTATION_DRAG: Record<string, string> = {
+  x1: 'Drag the middle column of the front face UP.',
+  x3: 'Drag the middle column of the front face DOWN.',
+  y1: 'Drag the middle row of the front face to the LEFT.',
+  y3: 'Drag the middle row of the front face to the RIGHT.',
+  z1: 'Drag the middle row of the top face to the RIGHT.',
+  z3: 'Drag the middle row of the top face to the LEFT.',
+};
 
 const schemeAt = (state: readonly Color[]): CenterScheme => ({ ...DEFAULT_SCHEME, ...schemeOf(state) });
 
 function formatTime(ms: number) {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Plain-English drag instruction for a quarter (or half) turn. */
+function dragInstruction(move: Move, scheme: CenterScheme): string {
+  const quarter: Move = { face: move.face, turns: move.turns === 2 ? 1 : move.turns };
+  const base = isFaceMove(quarter)
+    ? `Drag the ${LAYER_NAME[quarter.face]} (${COLOR_LABEL[scheme[quarter.face]].toLowerCase()} center) ${
+        quarter.turns === 1 ? PHYSICAL[quarter.face].cw : PHYSICAL[quarter.face].ccw
+      }.`
+    : ROTATION_DRAG[`${quarter.face}${quarter.turns}`];
+  return move.turns === 2 ? `${base} Do it twice — two quarter turns the same way.` : base;
 }
 
 export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
@@ -48,21 +66,22 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; offPlan: boolean } | null>(null);
   const [hint, setHint] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const cubeRef = useRef<CubeViewHandle>(null);
-  // Refs hold the latest position so fast key presses never act on a stale render.
+  // Refs hold the latest position so fast drags and key presses never act on a stale render.
   const stateRef = useRef(state);
   const coachRef = useRef(coach);
   const historyRef = useRef(history);
-  const ms = Math.min(SPEEDS[speed]?.ms ?? 750, 450); // keep play snappy, even on slow lesson speeds
+  const busyRef = useRef(false);
+  const ms = Math.min(SPEEDS[speed]?.ms ?? 750, 380); // keep play snappy, even on slow lesson speeds
 
   const solved = isSolved(state);
   const scheme = schemeAt(state);
   const suggested = nextCoachMove(coach);
-  const showSuggestion = learning || hint;
+  const hintMove = (learning || hint) && !busy ? suggested : null;
 
   // Clock for free play.
   useEffect(() => {
@@ -85,7 +104,7 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
 
   const doMove = useCallback(
     (move: Move) => {
-      if (busy) return;
+      if (busyRef.current) return;
       const before = stateRef.current;
       const wasSolved = isSolved(before);
       const r = playMove(before, coachRef.current, move);
@@ -99,28 +118,31 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
       if (r.solved && !wasSolved) {
         setFinishedAt(Date.now());
         setNotice(null);
-      } else if (!r.onPlan && learning && coachRef.current && r.coach) {
-        setNotice(`That wasn't the move I suggested — no problem! I've made a new plan from where the cube is now.`);
+      } else if (learning && r.halfway) {
+        setNotice({ text: 'Halfway there! Drag the same way once more to finish that half turn.', offPlan: false });
+      } else if (learning && !r.onPlan && r.coach && !wasSolved) {
+        setNotice({ text: "That wasn't the move I suggested — no problem! I've made a new plan from where the cube is now.", offPlan: true });
       } else setNotice(null);
       if (!r.solved) setFinishedAt(null);
     },
-    [busy, ms, commit, learning],
+    [ms, commit, learning],
   );
 
   const undo = useCallback(() => {
     const h = historyRef.current;
-    if (busy || !h.length) return;
+    if (busyRef.current || !h.length) return;
     const last = h[h.length - 1];
     cubeRef.current?.animateMove(invertMove(last.move), ms, last.state);
     commit(last.state, last.coach, h.slice(0, -1));
     if (countsAsTurn(last.move)) setTurns((n) => Math.max(0, n - 1));
     setFinishedAt(null);
     setNotice(null);
-  }, [busy, ms, commit]);
+  }, [ms, commit]);
 
   const shuffle = useCallback(
     async (count: number) => {
-      if (busy) return;
+      if (busyRef.current) return;
+      busyRef.current = true;
       setBusy(true);
       setNotice(null);
       setHint(false);
@@ -139,13 +161,14 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
       commit(s, makeCoach(s), []);
       setScramble(movesToString(moves));
       setShuffled(true);
+      busyRef.current = false;
       setBusy(false);
     },
-    [busy, commit, setScramble, setShuffled],
+    [commit, setScramble, setShuffled],
   );
 
   const reset = useCallback(() => {
-    if (busy) return;
+    if (busyRef.current) return;
     const s = solvedState();
     cubeRef.current?.showNow(s);
     commit(s, null, []);
@@ -156,9 +179,10 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
     setFinishedAt(null);
     setNotice(null);
     setHint(false);
-  }, [busy, commit, setScramble, setShuffled]);
+  }, [commit, setScramble, setShuffled]);
 
-  // Keyboard: U R F D L B turn faces, X Y Z turn the cube, Shift = counterclockwise, Ctrl+Z = undo, H = hint.
+  // Keyboard still works for those who like it: U R F D L B turn faces, X Y Z turn the cube,
+  // Shift = counterclockwise, Ctrl+Z = undo, H = hint.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.closest('input, textarea, select, dialog')) return;
@@ -184,21 +208,23 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
   }, [doMove, undo, learning]);
 
   const elapsed = startedAt === null ? 0 : (finishedAt ?? now) - startedAt;
-  const hintMove = showSuggestion && !busy ? suggested : null;
-  const desc = suggested ? describeMove(suggested, scheme) : null;
+  const planned = plannedMove(coach);
   const plan = coach?.solution.learn;
+  const desc = planned ? describeMove(planned, scheme) : null;
+  const status = busy ? 'Shuffling…' : solved ? (shuffled && turns > 0 ? 'Solved!' : 'Solved') : 'Scrambled';
 
-  const statusText = useMemo(() => {
-    if (busy) return 'Shuffling…';
-    if (solved) return shuffled && turns > 0 ? 'Solved!' : 'Solved — shuffle to start';
-    return 'Scrambled';
-  }, [busy, solved, shuffled, turns]);
-
-  // Shuffle options sit on top until the cube is mixed up, then move below the coaching.
-  const shuffleCard = (
-    <div className="card">
-      <h2 className="card-title">Shuffle the cube</h2>
-      <div className="shuffle-row">
+  // Mode, shuffle and progress in one compact card.
+  const controls = (
+    <div className="card control-card">
+      <div className="segmented" role="radiogroup" aria-label="Virtual cube mode">
+        <button type="button" role="radio" aria-checked={learning} className={learning ? 'is-on' : ''} onClick={() => onLearningChange(true)}>
+          <Icon name="learn" /> Learning mode
+        </button>
+        <button type="button" role="radio" aria-checked={!learning} className={!learning ? 'is-on' : ''} onClick={() => onLearningChange(false)}>
+          <Icon name="bolt" /> Free play
+        </button>
+      </div>
+      <div className="shuffle-row" role="group" aria-label="Shuffle">
         {SHUFFLES.map((s) => (
           <button key={s.id} type="button" className="btn shuffle-btn" onClick={() => shuffle(s.moves)} disabled={busy} title={s.note}>
             <span>{s.label}</span>
@@ -206,27 +232,41 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
           </button>
         ))}
       </div>
-      <div className="row row-between">
-        <span className="muted small scramble-text">
-          {scramble ? (
-            <>
-              Scramble: <code>{scramble}</code>
-            </>
-          ) : (
-            'The cube starts solved. Pick a shuffle to mix it up.'
-          )}
+      <div className="control-foot">
+        <span className={`status-pill ${solved ? 'is-solved' : ''}`}>{status}</span>
+        <span className="muted small">
+          {turns} turn{turns === 1 ? '' : 's'}
+          {!learning && <> · {formatTime(elapsed)}</>}
         </span>
-        <button type="button" className="btn btn-small" onClick={reset} disabled={busy}>
-          Reset to solved
+        <button type="button" className="link-btn small" onClick={reset} disabled={busy}>
+          Reset
         </button>
       </div>
+      {scramble && !solved && (
+        <p className="muted small scramble-text">
+          Scramble: <code>{scramble}</code>
+        </p>
+      )}
     </div>
   );
 
   return (
     <div className="layout virtual">
       <section className="viewer-col" aria-label="Virtual cube">
-        <CubeView ref={cubeRef} colors={state} hint={hintMove} label="Virtual Rubik's cube you can turn" className="cube-large">
+        <CubeView
+          ref={cubeRef}
+          colors={state}
+          hint={hintMove}
+          onTurn={busy ? undefined : doMove}
+          label="Virtual Rubik's cube: drag a row of stickers to turn it"
+          className="cube-large"
+          helpText="Drag a row to turn it · drag the middle to turn the whole cube · drag around the cube to look"
+          tools={
+            <button type="button" className="chip-btn" onClick={undo} disabled={history.length === 0 || busy} title="Undo the last turn (Ctrl+Z)">
+              <Icon name="undo" /> Undo
+            </button>
+          }
+        >
           <div className="orientation-badge">
             <span>
               <i className="dot" style={{ background: COLOR_HEX[scheme.U] }} /> {COLOR_LABEL[scheme.U]} on top
@@ -242,53 +282,21 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
             </div>
           )}
         </CubeView>
-        <MovePad scheme={scheme} suggested={hintMove} disabled={busy} onMove={doMove} onUndo={undo} canUndo={history.length > 0 && !busy} />
       </section>
 
       <section className="panel-col" aria-label="Virtual cube controls">
-        <div className="card mode-card">
-          <div className="segmented" role="radiogroup" aria-label="Virtual cube mode">
-            <button type="button" role="radio" aria-checked={learning} className={learning ? 'is-on' : ''} onClick={() => onLearningChange(true)}>
-              <Icon name="learn" /> Learning mode
-            </button>
-            <button type="button" role="radio" aria-checked={!learning} className={!learning ? 'is-on' : ''} onClick={() => onLearningChange(false)}>
-              <Icon name="bolt" /> Free play
-            </button>
-          </div>
-          <p className="muted small mode-note">
-            {learning
-              ? 'Cubey suggests every move and explains why. Make the move yourself with the buttons or keys. Take a different turn any time and the plan adapts.'
-              : 'Solve it your own way. A timer and move counter track you; ask for a hint whenever you are stuck.'}
-          </p>
-        </div>
-
-        {solved && shuffleCard}
-
-        <div className="card stats-card" aria-live="polite">
-          <div className="stat">
-            <span className="stat-label">Status</span>
-            <span className={`stat-value ${solved ? 'is-solved' : ''}`}>{statusText}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Turns</span>
-            <span className="stat-value">{turns}</span>
-          </div>
-          {!learning && (
-            <div className="stat">
-              <span className="stat-label">Time</span>
-              <span className="stat-value">{formatTime(elapsed)}</span>
-            </div>
-          )}
-        </div>
+        {controls}
 
         {notice && (
           <div className="coach notice">
-            <Mascot mood="happy" size={46} />
+            <Mascot mood={notice.offPlan ? 'thinking' : 'happy'} size={46} />
             <p className="bubble">
-              {notice}{' '}
-              <button type="button" className="link-btn" onClick={undo}>
-                Undo that turn
-              </button>
+              {notice.text}{' '}
+              {notice.offPlan && (
+                <button type="button" className="link-btn" onClick={undo}>
+                  Undo that turn
+                </button>
+              )}
             </p>
           </div>
         )}
@@ -298,14 +306,9 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
             <Mascot mood="cheer" size={90} />
             <h2>You solved it!</h2>
             <p>
-              {turns} turns{!learning && startedAt !== null ? ` in ${formatTime(elapsed)}` : ''}. Shuffle again to keep practising
-              {learning ? ' — or switch to Free play and try it on your own.' : '.'}
+              {turns} turns{!learning && startedAt !== null ? ` in ${formatTime(elapsed)}` : ''}. Pick a shuffle to go again
+              {learning ? ', or switch to Free play and try it on your own.' : '.'}
             </p>
-            <div className="row">
-              <button type="button" className="btn btn-primary" onClick={() => shuffle(25)}>
-                Shuffle again
-              </button>
-            </div>
           </div>
         ) : solved ? (
           <div className="card start-card">
@@ -313,135 +316,67 @@ export function VirtualScreen({ learning, onLearningChange, speed }: Props) {
             <div>
               <h2 className="card-title">No cube in your hand? No problem!</h2>
               <p>
-                This is a virtual cube. Shuffle it, then solve it with the move buttons or your keyboard.{' '}
-                {learning ? 'In learning mode I show you every move and why it works.' : 'In free play you are on your own — hints are one click away.'}
+                Pick <strong>Easy</strong>, <strong>Medium</strong> or <strong>Hard</strong> to shuffle the cube. Then turn it by dragging a row of
+                stickers, just like twisting a real one. Drag the middle row to turn the whole cube, and drag next to the cube to look
+                around it.
               </p>
             </div>
           </div>
-        ) : learning && plan && suggested && desc && coach ? (
+        ) : learning && plan && planned && suggested && desc && coach ? (
           <>
             <LearnCards plan={plan} step={coach.step} states={coach.solution.states} learning />
             <div className="card move-card">
-              <div className="move-card-label">Your move</div>
+              <div className="move-card-label">Your move {coach.halfDone ? '· halfway there' : ''}</div>
               <div className="move-main">
-                <div className="move-notation" aria-label={`Move ${moveToString(suggested)}`}>
-                  {moveToString(suggested)}
+                <div className="move-notation" aria-label={`Move ${moveToString(planned)}`}>
+                  {moveToString(planned)}
                 </div>
-                {isFaceMove(suggested) ? (
+                {isFaceMove(planned) ? (
                   <TurnIllustration
-                    move={suggested}
-                    stickers={state.slice(faceIndex(suggested.face) * 9, faceIndex(suggested.face) * 9 + 9)}
+                    move={planned}
+                    stickers={state.slice(faceIndex(planned.face) * 9, faceIndex(planned.face) * 9 + 9)}
                     faceColor={desc.faceColor}
                     size={120}
                   />
                 ) : (
-                  <FlipIllustration before={state} after={applyMove(state, suggested)} />
+                  <FlipIllustration before={state} after={applyMove(state, planned)} />
                 )}
               </div>
               <h2 className="move-headline">
                 <i className="dot" style={{ background: COLOR_HEX[desc.faceColor] }} /> {desc.headline}
               </h2>
-              <p className="move-instruction">{desc.instruction}</p>
+              <p className="move-instruction">
+                {coach.halfDone ? 'Once more, the same way as before.' : dragInstruction(planned, scheme)} Follow the pink arrow on the cube.
+              </p>
               <MoveWhy plan={plan} step={coach.step} />
               <div className="row your-move-actions">
-                <button type="button" className="btn btn-primary" onClick={() => doMove(suggested)} disabled={busy}>
+                <button type="button" className="btn" onClick={() => doMove(suggested)} disabled={busy}>
                   <Icon name="play" /> Do it for me
                 </button>
-                <span className="muted small">
-                  or press the highlighted <strong>{moveToString(suggested)}</strong> button (key{' '}
-                  <kbd>
-                    {suggested.turns === 3 ? 'Shift+' : ''}
-                    {suggested.face.toUpperCase()}
-                  </kbd>
-                  {suggested.turns === 2 ? ' twice' : ''})
-                </span>
               </div>
             </div>
           </>
         ) : !learning ? (
           <div className="card">
             <h2 className="card-title">Stuck?</h2>
-            {hint && suggested && desc ? (
+            {hint && suggested ? (
               <div className="hint-box">
                 <p>
-                  <strong>Try {moveToString(suggested)}:</strong> {desc.instruction}
+                  <strong>Try {moveToString(suggested)}:</strong> {dragInstruction(suggested, scheme)} The pink arrow on the cube shows it.
                 </p>
                 {plan && coach && <p className="muted small">Goal right now: {plan.segments[plan.notes[coach.step].segment].title}.</p>}
               </div>
             ) : (
-              <p className="muted">Ask for a hint and the next beginner-method move lights up on the cube and the move buttons.</p>
+              <p className="muted">Ask for a hint and the next move lights up on the cube.</p>
             )}
             <div className="row">
               <button type="button" className="btn" onClick={() => setHint((h) => !h)} disabled={busy}>
-                <Icon name="bulb" /> {hint ? 'Hide hint' : 'Show a hint'} <kbd>H</kbd>
+                <Icon name="bulb" /> {hint ? 'Hide hint' : 'Show a hint'}
               </button>
             </div>
           </div>
         ) : null}
-        {!solved && shuffleCard}
       </section>
-    </div>
-  );
-}
-
-interface PadProps {
-  scheme: CenterScheme;
-  suggested: Move | null;
-  disabled: boolean;
-  onMove: (m: Move) => void;
-  onUndo: () => void;
-  canUndo: boolean;
-}
-
-/** On-screen buttons for every face turn and whole-cube turn. */
-function MovePad({ scheme, suggested, disabled, onMove, onUndo, canUndo }: PadProps) {
-  const button = (face: Move['face'], turns: 1 | 2 | 3) => {
-    const m: Move = { face, turns };
-    const isNext = suggested !== null && suggested.face === face && suggested.turns === turns;
-    return (
-      <button
-        key={turns}
-        type="button"
-        className={`btn pad-btn ${isNext ? 'is-next' : ''}`}
-        onClick={() => onMove(m)}
-        disabled={disabled}
-        aria-label={`${moveToString(m)}${isNext ? ' (suggested move)' : ''}`}
-      >
-        {moveToString(m)}
-      </button>
-    );
-  };
-  return (
-    <div className="card move-pad" aria-label="Move buttons">
-      <div className="row row-between pad-head">
-        <h2 className="card-title">Turn the cube</h2>
-        <button type="button" className="btn btn-small" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-          <Icon name="undo" /> Undo
-        </button>
-      </div>
-      <div className="pad-grid">
-        {PAD_FACES.map((f) => (
-          <div key={f} className="pad-group">
-            <span className="pad-label">
-              <i className="dot" style={{ background: COLOR_HEX[scheme[f]] }} /> {FACE_NAMES[f]}
-            </span>
-            <div className="pad-buttons">{([1, 3, 2] as const).map((t) => button(f, t))}</div>
-          </div>
-        ))}
-      </div>
-      <h3 className="pad-subtitle">Turn the whole cube</h3>
-      <div className="pad-grid">
-        {ROTATIONS.map((r) => (
-          <div key={r} className="pad-group">
-            <span className="pad-label">{ROTATION_NAME[r]}</span>
-            <div className="pad-buttons">{([1, 3, 2] as const).map((t) => button(r, t))}</div>
-          </div>
-        ))}
-      </div>
-      <p className="muted small pad-keys">
-        Keyboard: <kbd>U</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>B</kbd> <kbd>L</kbd> <kbd>R</kbd> turn a face, <kbd>X</kbd> <kbd>Y</kbd>{' '}
-        <kbd>Z</kbd> turn the cube, hold <kbd>Shift</kbd> for counterclockwise, <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes.
-      </p>
     </div>
   );
 }

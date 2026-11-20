@@ -12,6 +12,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
+import { dragDirections, dragToMove } from '../cube/drag';
 import { FACELETS, FACE_NORMALS, type Vec3 } from '../cube/geometry';
 import { isRotation, moveAxis, type Move } from '../cube/moves';
 import { COLOR_HEX, EMPTY_HEX, type Face, type Sticker } from '../cube/types';
@@ -103,6 +104,9 @@ export class CubeRenderer {
   private frame = 0;
   private pickHandler: ((index: number) => void) | null = null;
   private pointerDown: { x: number; y: number } | null = null;
+  private turnHandler: ((move: Move) => void) | null = null;
+  /** A drag that started on a sticker (it turns a layer instead of orbiting the camera). */
+  private turnDrag: { pointerId: number; index: number; point: THREE.Vector3; x: number; y: number; fired: boolean } | null = null;
   private disposed = false;
 
   constructor(private readonly container: HTMLElement) {
@@ -143,7 +147,23 @@ export class CubeRenderer {
 
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointerup', this.onPointerUp);
+    // Capture phase: decide before OrbitControls whether this drag turns a layer.
+    canvas.addEventListener('pointerdown', this.onTurnDown, { capture: true });
+    canvas.addEventListener('pointermove', this.onTurnMove);
+    canvas.addEventListener('pointerup', this.onTurnEnd);
+    canvas.addEventListener('pointercancel', this.onTurnEnd);
     this.loop();
+    // Development aid for automated checks: where a sticker is on screen (client pixels).
+    if (import.meta.env.DEV) {
+      (window as unknown as { __cubeStickerAt?: (i: number) => { x: number; y: number } }).__cubeStickerAt = (i) => {
+        this.finishAnimation();
+        this.cubeGroup.updateMatrixWorld(true);
+        const p = this.stickerMeshes[i].getWorldPosition(new THREE.Vector3());
+        const s = this.toScreen(p);
+        const rect = canvas.getBoundingClientRect();
+        return { x: rect.left + s.x, y: rect.top + s.y };
+      };
+    }
   }
 
   private buildCube() {
@@ -268,6 +288,11 @@ export class CubeRenderer {
   setPickHandler(handler: ((index: number) => void) | null) {
     this.pickHandler = handler;
     this.renderer.domElement.style.cursor = handler ? 'pointer' : 'grab';
+  }
+
+  /** Let the user turn layers by dragging stickers; `handler` receives each move. */
+  setTurnHandler(handler: ((move: Move) => void) | null) {
+    this.turnHandler = handler;
   }
 
   resetView() {
@@ -412,16 +437,86 @@ export class CubeRenderer {
     this.pointerDown = null;
     if (!start || !this.pickHandler || this.anim) return;
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) return; // that was a drag
+    const hit = this.stickerAt(e.clientX, e.clientY);
+    if (hit) this.pickHandler(hit.index);
+  };
+
+  /**
+   * The sticker under a screen point. For clicks (painting) only a direct hit on a sticker
+   * counts, so the black gap between stickers does nothing. For drags (`anywhere`), any point on
+   * the cube counts: the sticker square is found from where the ray enters the cube's outer box,
+   * because in a gap the ray can slip between pieces and touch one deeper inside.
+   */
+  private stickerAt(clientX: number, clientY: number, anywhere = false): { index: number; point: THREE.Vector3 } | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1,
-    );
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    // Only the nearest hit counts; clicking the black gap between stickers does nothing.
-    const hit = ray.intersectObjects(this.cubies, true)[0];
-    if (hit && hit.object.userData.index !== undefined) this.pickHandler(hit.object.userData.index as number);
+    if (!anywhere) {
+      const hit = ray.intersectObjects(this.cubies, true)[0];
+      return hit && hit.object.userData.index !== undefined ? { index: hit.object.userData.index as number, point: hit.point.clone() } : null;
+    }
+    const entry = ray.ray.intersectBox(new THREE.Box3(new THREE.Vector3(-1.5, -1.5, -1.5), new THREE.Vector3(1.5, 1.5, 1.5)), new THREE.Vector3());
+    if (!entry) return null;
+    const axis = [0, 1, 2].reduce((a, k) => (Math.abs(entry.getComponent(k)) > Math.abs(entry.getComponent(a)) ? k : a), 0);
+    const normal = [0, 0, 0] as Vec3;
+    normal[axis] = Math.sign(entry.getComponent(axis));
+    const cubie = [0, 1, 2].map((k) => (k === axis ? normal[k] : Math.max(-1, Math.min(1, Math.round(entry.getComponent(k)))))) as Vec3;
+    const f = FACELETS.find((x) => x.cubie.every((v, k) => v === cubie[k]) && x.normal.every((v, k) => v === normal[k]));
+    return f ? { index: f.index, point: entry } : null;
+  }
+
+  /** Screen position (CSS pixels, relative to the canvas) of a point in the scene. */
+  private toScreen(p: THREE.Vector3): THREE.Vector2 {
+    const v = p.clone().project(this.camera);
+    const canvas = this.renderer.domElement;
+    return new THREE.Vector2(((v.x + 1) / 2) * canvas.clientWidth, ((1 - v.y) / 2) * canvas.clientHeight);
+  }
+
+  // ---------------------------------------------------------------- drag to turn
+
+  private onTurnDown = (e: PointerEvent) => {
+    if (!this.turnHandler || this.turnDrag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    // Snap any turn still animating so the pieces are where the player sees them settle.
+    this.finishAnimation();
+    const hit = this.stickerAt(e.clientX, e.clientY, true);
+    if (!hit) return; // started off the cube: let OrbitControls rotate the view
+    this.controls.enabled = false;
+    this.turnDrag = { pointerId: e.pointerId, index: hit.index, point: hit.point, x: e.clientX, y: e.clientY, fired: false };
+    try {
+      this.renderer.domElement.setPointerCapture(e.pointerId); // keep the drag even if it leaves the canvas
+    } catch {
+      /* pointer no longer active */
+    }
+    this.renderer.domElement.style.cursor = 'grabbing';
+  };
+
+  private onTurnMove = (e: PointerEvent) => {
+    const drag = this.turnDrag;
+    if (!drag || drag.fired || e.pointerId !== drag.pointerId) return;
+    const delta = new THREE.Vector2(e.clientX - drag.x, e.clientY - drag.y);
+    if (delta.length() < 14) return;
+    // Pick the in-plane direction whose on-screen direction best matches the drag.
+    const from = this.toScreen(drag.point);
+    let best: { d: Vec3; score: number } | null = null;
+    for (const d of dragDirections(drag.index)) {
+      const to = this.toScreen(drag.point.clone().add(new THREE.Vector3(...d).multiplyScalar(0.6)));
+      const dir = to.sub(from);
+      if (dir.lengthSq() < 1e-6) continue;
+      const score = dir.normalize().dot(delta.clone().normalize());
+      if (!best || score > best.score) best = { d, score };
+    }
+    drag.fired = true;
+    if (best && best.score > 0.3) this.turnHandler?.(dragToMove(drag.index, best.d));
+  };
+
+  private onTurnEnd = (e: PointerEvent) => {
+    const drag = this.turnDrag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    this.turnDrag = null;
+    this.controls.enabled = true;
+    if (this.renderer.domElement.hasPointerCapture(e.pointerId)) this.renderer.domElement.releasePointerCapture(e.pointerId);
+    this.renderer.domElement.style.cursor = this.pickHandler ? 'pointer' : 'grab';
   };
 
   dispose() {
@@ -434,6 +529,10 @@ export class CubeRenderer {
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointerup', this.onPointerUp);
+    canvas.removeEventListener('pointerdown', this.onTurnDown, { capture: true });
+    canvas.removeEventListener('pointermove', this.onTurnMove);
+    canvas.removeEventListener('pointerup', this.onTurnEnd);
+    canvas.removeEventListener('pointercancel', this.onTurnEnd);
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
