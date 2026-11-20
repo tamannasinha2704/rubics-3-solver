@@ -10,7 +10,7 @@ import { FlipIllustration, Mascot, MiniFace, TurnIllustration } from './Diagrams
 import { Icon } from './Icons';
 
 /** Animation length for each speed setting, slowest first. */
-const SPEEDS = [
+export const SPEEDS = [
   { label: 'Very slow', ms: 1800 },
   { label: 'Slow', ms: 1200 },
   { label: 'Normal', ms: 750 },
@@ -324,7 +324,7 @@ export function StepsScreen({ solution, learning, speed, onSpeedChange, onEdit, 
 
 // ------------------------------------------------------------------ solve-along cards
 
-function LearnCards({ plan, step, states, learning }: { plan: LearnPlan; step: number; states: Color[][]; learning: boolean }) {
+export function LearnCards({ plan, step, states, learning }: { plan: LearnPlan; step: number; states: Color[][]; learning: boolean }) {
   const note = plan.notes[step];
   const seg = plan.segments[note.segment];
   const stage = plan.stages.find((s) => s.id === seg.stage)!;
@@ -419,7 +419,7 @@ function TrickTracker({ plan, step }: { plan: LearnPlan; step: number }) {
   );
 }
 
-function MoveWhy({ plan, step }: { plan: LearnPlan; step: number }) {
+export function MoveWhy({ plan, step }: { plan: LearnPlan; step: number }) {
   const note = plan.notes[step];
   const seg = plan.segments[note.segment];
   const before = step > seg.firstMove ? plan.notes[step - 1].piece : undefined;
@@ -432,7 +432,20 @@ function MoveWhy({ plan, step }: { plan: LearnPlan; step: number }) {
       {note.piece && (
         <p className="piece-track">
           <Icon name="pin" className="inline-icon" /> Our piece
-          {before === note.piece ? ' stays at' : before ? <> goes from <em>{before}</em> to</> : ' ends up at'} <strong>{note.piece}</strong>
+          {note.piece.startsWith('in ') ? (
+            // "in its home spot" reads as a place on its own.
+            <>{before === note.piece ? ' stays' : ' is now'}</>
+          ) : before === note.piece ? (
+            ' stays at'
+          ) : before ? (
+            <>
+              {' '}
+              goes from <em>{before}</em> to
+            </>
+          ) : (
+            ' ends up at'
+          )}{' '}
+          <strong>{note.piece}</strong>
         </p>
       )}
     </div>

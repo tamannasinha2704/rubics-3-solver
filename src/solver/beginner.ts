@@ -771,11 +771,26 @@ export function stageInfos(bottom: string, top: string): StageInfo[] {
 
 const capital = (s: string) => s[0].toUpperCase() + s.slice(1);
 
-/** Solve a (valid, unsolved) sticker state with the beginner method. */
-export function solveBeginner(colors: Color[]): LearnPlan {
-  // Step 1: flip the cube so the color now on top ends up on the bottom.
-  const flip: Move = { face: 'z', turns: 2 };
-  const flipped = applyMove(colors, flip);
+/** Whole-cube turn that brings the center on `face` to the bottom (null if it is already there). */
+const TO_BOTTOM: Record<Face, { move: Move; how: string } | null> = {
+  D: null,
+  U: { move: { face: 'z', turns: 2 }, how: 'turn it over like a steering wheel, twice (a half turn)' },
+  F: { move: { face: 'x', turns: 3 }, how: 'tip it toward you, a quarter turn, so the front face goes to the bottom' },
+  B: { move: { face: 'x', turns: 1 }, how: 'tip it away from you, a quarter turn, so the back face goes to the bottom' },
+  R: { move: { face: 'z', turns: 1 }, how: 'roll it to the right like a steering wheel, a quarter turn' },
+  L: { move: { face: 'z', turns: 3 }, how: 'roll it to the left like a steering wheel, a quarter turn' },
+};
+
+/**
+ * Solve a (valid, unsolved) sticker state with the beginner method.
+ * The cross is built on the bottom in `crossColor`; by default that is the
+ * color currently on top, which the opening whole-cube turn moves down.
+ */
+export function solveBeginner(colors: Color[], crossColor?: Color): LearnPlan {
+  const startFace = crossColor ? FACES.find((f) => colors[centerIndex(f)] === crossColor) : 'U';
+  if (!startFace) throw new Error(`No center has the color ${crossColor}`);
+  const turn = TO_BOTTOM[startFace];
+  const flipped = turn ? applyMove(colors, turn.move) : colors.slice();
   const centers = Object.fromEntries(FACES.map((f) => [f, flipped[centerIndex(f)]])) as Record<Face, Color>;
   const faceOfColor = new Map(FACES.map((f) => [centers[f], f]));
   const name = (f: Face) => COLOR_LABEL[centers[f]].toLowerCase();
@@ -785,15 +800,17 @@ export function solveBeginner(colors: Color[]): LearnPlan {
     name,
   );
 
-  b.begin(
-    'flip',
-    `Flip the cube: ${name('D')} goes to the bottom`,
-    `Turn the whole cube over like a steering wheel, twice (a half turn), keeping the ${name('F')} center facing you. Now ${name('U')} is on top and ${name('D')} is on the bottom. Keep holding it this way for the rest of the solve.`,
-  );
-  // The flip is applied to the colors directly; the builder already holds the flipped state.
-  b.moves.push(flip);
-  b.segments[0].moveCount = 1;
-  b.notes.push({ segment: 0, why: `Turn the whole cube a half turn like a steering wheel. ${capital(name('D'))} ends up on the bottom.` });
+  if (turn) {
+    b.begin(
+      'flip',
+      `Turn the cube: ${name('D')} goes to the bottom`,
+      `Turn the whole cube — ${turn.how} — without twisting any layer. Now ${name('U')} is on top and ${name('D')} is on the bottom. Keep holding it this way for the rest of the solve.`,
+    );
+    // The turn is applied to the colors directly; the builder already holds the turned state.
+    b.moves.push(turn.move);
+    b.segments[0].moveCount = 1;
+    b.notes.push({ segment: 0, why: `Turn the whole cube: ${turn.how}. ${capital(name('D'))} ends up on the bottom.` });
+  }
 
   solveDaisy(b);
   solveCross(b);

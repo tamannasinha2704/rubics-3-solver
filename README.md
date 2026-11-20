@@ -11,7 +11,10 @@ mission (which piece you're placing and why), the named trick being used, and wh
 goes. Everything runs in the browser. A **Quick solve** mode gives the computer's shortest
 solution (about 20 moves) instead.
 
-**Workflow:** Enter cube → Validate → Solve → Follow steps
+**Two ways to use it** (switch at the top of the page):
+
+- **Solve my cube:** Enter cube → Validate → Solve → Follow steps, for the real cube in your hands.
+- **Virtual cube:** shuffle an on-screen cube and solve it right in the browser, no cube needed.
 
 ## Features
 
@@ -55,6 +58,25 @@ solution (about 20 moves) instead.
 - A friendly comic look (Fredoka and Nunito type, chunky outlines, the Cubey mascot) that works on phones (with a docked
   control bar) and in light and dark themes. The cube you entered is kept in local storage
   between visits.
+
+## Virtual cube
+
+No cube in your hand? The **Virtual cube** section gives you a 3D cube to solve on screen.
+
+- **Shuffle options:** Easy (5 random turns), Medium (12) or Full shuffle (25, like a
+  competition scramble). The scramble is shown in notation, and "Reset to solved" starts over.
+  Scrambles never waste turns, so a turn is never followed by the same face or sandwiched
+  between turns of its opposite face.
+- **Turning the cube:** on-screen buttons for all 18 face turns plus whole-cube turns
+  (x, y, z), or the keyboard: U D F B L R turn a face, X Y Z turn the cube, Shift makes it
+  counterclockwise, and Ctrl+Z undoes.
+- **Learning mode:** Cubey coaches you through the beginner method with the same stage,
+  mission, trick and why cards as the main solver. The suggested move is highlighted on the
+  cube and on its button. Make it yourself or press "Do it for me". If you take a different
+  turn, the plan adapts from the new position. It always keeps building on the white cross, so
+  it never asks you to flip the cube again.
+- **Free play** (Learning mode off): solve it your own way with a timer and turn counter. Press
+  "Show a hint" (or H) to light up the next beginner-method move.
 
 ## Run it locally
 
@@ -128,6 +150,8 @@ src/
     cube.test.ts        Unit tests
   solver/
     beginner.ts         Beginner-method solver that explains every move
+  virtual/
+    session.ts          Virtual cube: scrambles and a coaching plan that follows the player
     solverCore.ts       Wrapper around the Kociemba solver
     solver.worker.ts    Runs the solver off the main thread
     solverClient.ts     Promise API, plus independent verification of every solution
