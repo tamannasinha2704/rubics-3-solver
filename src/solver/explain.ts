@@ -5,7 +5,7 @@ import { isFaceMove, type Move } from '../cube/moves';
 import { validateCube } from '../cube/validation';
 import { COLOR_LABEL, FACE_NAMES, type CenterScheme, type Color, type Face } from '../cube/types';
 
-const LAYER_NAME: Record<Face, string> = {
+export const LAYER_NAME: Record<Face, string> = {
   U: 'top layer',
   D: 'bottom layer',
   R: 'right side',

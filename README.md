@@ -11,7 +11,10 @@ mission (which piece you're placing and why), the named trick being used, and wh
 goes. Everything runs in the browser. A **Quick solve** mode gives the computer's shortest
 solution (about 20 moves) instead.
 
-**Workflow:** Enter cube → Validate → Solve → Follow steps
+**Two ways to use it** (switch at the top of the page):
+
+- **Solve my cube:** Enter cube → Validate → Solve → Follow steps, for the real cube in your hands.
+- **Virtual cube:** shuffle an on-screen cube and solve it right in the browser, no cube needed.
 
 ## Features
 
@@ -55,6 +58,26 @@ solution (about 20 moves) instead.
 - A friendly comic look (Fredoka and Nunito type, chunky outlines, the Cubey mascot) that works on phones (with a docked
   control bar) and in light and dark themes. The cube you entered is kept in local storage
   between visits.
+
+## Virtual cube
+
+No cube in your hand? The **Virtual cube** section gives you a 3D cube to solve on screen. It keeps the screen simple: the cube, **Learning mode / Free play**, and **Easy / Medium / Hard** shuffles.
+
+- **Turn it by dragging**, like a real cube. Drag a row or column of stickers to turn that
+  layer, and drag a middle row or column to turn the whole cube. Drag next to the cube to look
+  around it. Drags that start in the gaps between stickers still work. The Undo button on the
+  cube (or Ctrl+Z) takes a turn back. Keyboard turns also work (U D F B L R, X Y Z, Shift for
+  counterclockwise).
+- **Shuffles:** Easy (5 random turns), Medium (12) or Hard (25). Scrambles never waste turns:
+  a turn is never followed by the same face, or sandwiched between turns of its opposite face.
+- **Learning mode:** Cubey coaches you through the beginner method with the same stage,
+  mission, trick and why cards as the main solver, and says which way to drag. The pink arrow
+  on the cube shows the layer and direction. Since a drag is a quarter turn, a half turn such as
+  B2 is two drags the same way, and the coach counts the first one as halfway. If you take a
+  different turn, the plan adapts from the new position. It always keeps building on the white
+  cross, so it never asks you to flip the cube back over.
+- **Free play** (Learning mode off): solve it your own way with a timer and turn counter. Press
+  "Show a hint" (or H) to light up the next move.
 
 ## Run it locally
 
@@ -108,6 +131,8 @@ name. The workflow reads it automatically.
 
 Every later `git push` to `main` redeploys automatically.
 
+Pull requests into `main` also run `.github/workflows/pr-checks.yml` (type check, tests and a production build), so the pull request shows a pass or fail before you merge.
+
 > **How the base path works:** GitHub Pages serves project sites from `/<repo-name>/`. The
 > workflow passes that path to Vite as `BASE_PATH` (see `vite.config.ts`), so asset and
 > Web Worker URLs resolve correctly. If the repository is named `<username>.github.io`, the site
@@ -128,6 +153,9 @@ src/
     cube.test.ts        Unit tests
   solver/
     beginner.ts         Beginner-method solver that explains every move
+  virtual/
+    session.ts          Virtual cube: scrambles and a coaching plan that follows the player
+  cube/drag.ts          Which turn a drag on a sticker makes
     solverCore.ts       Wrapper around the Kociemba solver
     solver.worker.ts    Runs the solver off the main thread
     solverClient.ts     Promise API, plus independent verification of every solution

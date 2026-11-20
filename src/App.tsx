@@ -7,6 +7,7 @@ import { Guide } from './components/Guide';
 import { InputScreen } from './components/InputScreen';
 import { Stepper, type StepStatus } from './components/Stepper';
 import { StepsScreen } from './components/StepsScreen';
+import { VirtualScreen } from './components/VirtualScreen';
 import { isBoolean, useStoredState } from './hooks/useStoredState';
 import { onSolverStatus, solveCube, warmUpSolver, type Solution, type SolveMethod, type SolverStatus } from './solver/solverClient';
 
@@ -14,6 +15,9 @@ const isStickerState = (v: unknown): v is StickerState =>
   Array.isArray(v) && v.length === 54 && v.every((s) => s === null || (COLORS as readonly unknown[]).includes(s));
 const isSpeed = (v: unknown): v is number => typeof v === 'number' && v >= 0 && v <= 4;
 const isMethod = (v: unknown): v is SolveMethod => v === 'learn' || v === 'quick';
+
+type Section = 'real' | 'virtual';
+const isSection = (v: unknown): v is Section => v === 'real' || v === 'virtual';
 
 const HISTORY_LIMIT = 200;
 
@@ -32,6 +36,7 @@ export default function App() {
   const [solveError, setSolveError] = useState<string | null>(null);
   const [solverStatus, setSolverStatus] = useState<SolverStatus>('loading');
   const [guideOpen, setGuideOpen] = useState(false);
+  const [section, setSection] = useStoredState<Section>('cube.section', 'real', isSection);
 
   useEffect(() => {
     warmUpSolver();
@@ -122,8 +127,16 @@ export default function App() {
             <p className="tagline">Solve your cube along with me — and learn how it works!</p>
           </div>
         </div>
+        <nav className="section-tabs" aria-label="Choose what to do">
+          <button type="button" className={section === 'real' ? 'is-on' : ''} aria-pressed={section === 'real'} onClick={() => setSection('real')}>
+            Solve my cube
+          </button>
+          <button type="button" className={section === 'virtual' ? 'is-on' : ''} aria-pressed={section === 'virtual'} onClick={() => setSection('virtual')}>
+            Virtual cube
+          </button>
+        </nav>
         <div className="header-actions">
-          <label className="switch" title="Show extra explanations while you enter and solve">
+          <label className="switch" title={section === 'virtual' ? 'On: Cubey coaches every move. Off: free play.' : 'Show extra explanations while you enter and solve'}>
             <input type="checkbox" checked={learning} onChange={(e) => setLearning(e.target.checked)} />
             <span className="switch-track" aria-hidden="true" />
             <span>Learning mode</span>
@@ -134,9 +147,9 @@ export default function App() {
         </div>
       </header>
 
-      <Stepper statuses={stepStatuses} />
+      {section === 'real' && <Stepper statuses={stepStatuses} />}
 
-      {learning && phase === 'input' && (
+      {section === 'real' && learning && phase === 'input' && (
         <p className="intro">
           Hi, I'm Cubey! First copy the colors of your scrambled cube into the faces below. Then we'll solve it together, one small
           mission at a time. New to cubes? Peek at <button type="button" className="link-btn" onClick={() => setGuideOpen(true)}>Cube basics</button> first.
@@ -144,7 +157,9 @@ export default function App() {
       )}
 
       <main>
-        {phase === 'steps' && solution ? (
+        {section === 'virtual' ? (
+          <VirtualScreen learning={learning} onLearningChange={setLearning} speed={speed} />
+        ) : phase === 'steps' && solution ? (
           <StepsScreen
             key={solution.key}
             solution={solution.value}

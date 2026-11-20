@@ -15,6 +15,12 @@ interface Props {
   highlights?: readonly number[];
   hint?: Move | null;
   onPick?: (index: number) => void;
+  /** When set, dragging a row of stickers turns that layer and reports the move. */
+  onTurn?: (move: Move) => void;
+  /** Extra buttons shown with the view tools (top right). */
+  tools?: ReactNode;
+  /** Replaces the default help line under the cube. */
+  helpText?: string;
   /** Overlay content (e.g. orientation reminder). */
   children?: ReactNode;
   className?: string;
@@ -22,7 +28,7 @@ interface Props {
 }
 
 export const CubeView = forwardRef<CubeViewHandle, Props>(function CubeView(
-  { colors, highlights, hint, onPick, children, className, label },
+  { colors, highlights, hint, onPick, onTurn, tools, helpText, children, className, label },
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -49,6 +55,7 @@ export const CubeView = forwardRef<CubeViewHandle, Props>(function CubeView(
   useEffect(() => rendererRef.current?.setHint(hint ?? null), [hint]);
   useEffect(() => rendererRef.current?.setShowLabels(showLabels), [showLabels]);
   useEffect(() => rendererRef.current?.setPickHandler(onPick ?? null), [onPick]);
+  useEffect(() => rendererRef.current?.setTurnHandler(onTurn ?? null), [onTurn]);
 
   useImperativeHandle(
     ref,
@@ -70,6 +77,7 @@ export const CubeView = forwardRef<CubeViewHandle, Props>(function CubeView(
       {error && <div className="cube-error">{error}</div>}
       <div className="cube-overlay">{children}</div>
       <div className="cube-tools">
+        {tools}
         <button
           type="button"
           className="chip-btn"
@@ -88,7 +96,7 @@ export const CubeView = forwardRef<CubeViewHandle, Props>(function CubeView(
           Reset view
         </button>
       </div>
-      <p className="cube-hint-text">Drag to look around{onPick ? ' · tap a square to paint it' : ''}</p>
+      <p className="cube-hint-text">{helpText ?? `Drag to look around${onPick ? ' · tap a square to paint it' : ''}`}</p>
     </div>
   );
 });
